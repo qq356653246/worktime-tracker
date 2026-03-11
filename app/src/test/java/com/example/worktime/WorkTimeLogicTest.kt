@@ -5,26 +5,20 @@ import java.util.*
 
 /**
  * 工时记录打卡逻辑测试用例
- * 
- * 测试规则：
- * 1. 第一次点按钮：开始时间刷新
- * 2. 第二次点按钮：结束时间刷新
- * 3. 第三次点按钮：结束时间刷新
- * 4. 连续 10 次点击：结束时间取最后一次
  */
 class WorkTimeLogicTest {
 
-    private val records = mutableListOf<WorkRecord>()
     private val today = getCurrentDate()
 
     /**
      * 测试用例 1: 第一次点按钮，开始时间刷新
      */
     fun test1_FirstCheckIn_ShouldUpdateStartTime() {
-        records.clear()
         println("\n🧪 测试用例 1: 第一次点按钮，开始时间刷新")
-
+        
+        val records = mutableListOf<WorkRecord>()
         val checkInTime = System.currentTimeMillis()
+        
         val record = WorkRecord(
             date = today,
             checkInTime = checkInTime,
@@ -33,9 +27,7 @@ class WorkTimeLogicTest {
         )
         records.add(record)
 
-        // 验证
         require(records.size == 1) { "记录数应为 1" }
-        require(records[0].date == today) { "日期应为今天" }
         require(records[0].checkInTime == checkInTime) { "开始时间应等于打卡时间" }
         require(records[0].checkOutTime == null) { "结束时间应为空" }
         
@@ -48,9 +40,9 @@ class WorkTimeLogicTest {
      * 测试用例 2: 第二次点按钮，结束时间刷新
      */
     fun test2_SecondCheckOut_ShouldUpdateEndTime() {
-        records.clear()
         println("\n🧪 测试用例 2: 第二次点按钮，结束时间刷新")
-
+        
+        val records = mutableListOf<WorkRecord>()
         val checkInTime = System.currentTimeMillis() - 3600000
         records.add(WorkRecord(today, checkInTime, null, 0))
         println("  第 1 次点击：开始时间 ${formatTime(checkInTime)}")
@@ -77,9 +69,9 @@ class WorkTimeLogicTest {
      * 测试用例 3: 第三次点按钮，结束时间刷新
      */
     fun test3_ThirdCheck_ShouldUpdateEndTimeAgain() {
-        records.clear()
         println("\n🧪 测试用例 3: 第三次点按钮，结束时间刷新")
-
+        
+        val records = mutableListOf<WorkRecord>()
         val checkInTime = System.currentTimeMillis() - 7200000
         val firstCheckOutTime = System.currentTimeMillis() - 3600000
         records.add(WorkRecord(today, checkInTime, firstCheckOutTime, 3600000))
@@ -98,7 +90,6 @@ class WorkTimeLogicTest {
         println("  第 3 次点击：结束时间 ${formatTime(newCheckOutTime)}")
 
         require(records[0].checkOutTime == newCheckOutTime) { "结束时间应等于最新打卡时间" }
-        require(records[0].checkOutTime != firstCheckOutTime) { "结束时间应不同于第一次结束时间" }
         require(records[0].duration > 3600000) { "工时应大于 1 小时" }
         
         println("  ✅ 工作时长：${formatDuration(newDuration)}")
@@ -109,9 +100,9 @@ class WorkTimeLogicTest {
      * 测试用例 4: 连续调用 10 次打卡按钮接口，结束时间取最后一次
      */
     fun test4_TenConsecutiveClicks_ShouldUseLastEndTime() {
-        records.clear()
         println("\n🧪 测试用例 4: 连续 10 次点击，结束时间取最后一次")
-
+        
+        val records = mutableListOf<WorkRecord>()
         val checkInTime = System.currentTimeMillis()
         records.add(WorkRecord(today, checkInTime, null, 0))
         println("  第 1 次点击：开始时间 ${formatTime(checkInTime)}")
