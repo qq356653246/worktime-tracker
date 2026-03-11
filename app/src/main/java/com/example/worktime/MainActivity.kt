@@ -5,12 +5,9 @@ import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.worktime.databinding.ActivityMainBinding
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.*
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.Executors
@@ -40,16 +37,26 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityMainBinding.inflate(layoutInflater)
-        setContentView(binding.root)
+        
+        try {
+            binding = ActivityMainBinding.inflate(layoutInflater)
+            setContentView(binding.root)
 
-        // 初始化数据库
-        database = WorkTimeDatabase.getDatabase(this)
-        dao = database.workTimeDao()
-
-        setupUI()
-        setupRecyclerView()
-        loadTodayRecord()
+            // 初始化数据库（在后台线程）
+            executor.execute {
+                database = WorkTimeDatabase.getDatabase(this@MainActivity)
+                dao = database.workTimeDao()
+                
+                runOnUiThread {
+                    setupUI()
+                    setupRecyclerView()
+                    loadTodayRecord()
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(this, "初始化失败：${e.message}", Toast.LENGTH_LONG).show()
+        }
     }
 
     private fun setupUI() {
@@ -75,37 +82,44 @@ class MainActivity : AppCompatActivity() {
         val today = getCurrentDate()
         
         executor.execute {
-            // 检查今天是否已经有未完成的打卡记录
-            val unfinishedRecord = dao.getUnfinishedRecord(today)
-            
-            if (unfinishedRecord != null) {
-                // 已有未完成记录，恢复状态
-                currentRecordId = unfinishedRecord.id
-                startTime = unfinishedRecord.checkInTime
-                isWorking = true
+            try {
+                // 检查今天是否已经有未完成的打卡记录
+                val unfinishedRecord = dao.getUnfinishedRecord(today)
                 
-                runOnUiThread {
-                    updateUIForCheckIn(startTime)
-                    handler.post(timerRunnable)
-                    Toast.makeText(this@MainActivity, "继续工作", Toast.LENGTH_SHORT).show()
+                if (unfinishedRecord != null) {
+                    // 已有未完成记录，恢复状态
+                    currentRecordId = unfinishedRecord.id
+                    startTime = unfinishedRecord.checkInTime
+                    isWorking = true
+                    
+                    runOnUiThread {
+                        updateUIForCheckIn(startTime)
+                        handler.post(timerRunnable)
+                        Toast.makeText(this@MainActivity, "继续工作", Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    // 创建新记录
+                    val record = WorkRecord(
+                        date = today,
+                        checkInTime = now,
+                        checkOutTime = null,
+                        duration = 0
+                    )
+                    
+                    currentRecordId = dao.insertRecord(record)
+                    startTime = now
+                    isWorking = true
+                    
+                    runOnUiThread {
+                        updateUIForCheckIn(startTime)
+                        handler.post(timerRunnable)
+                        Toast.makeText(this@MainActivity, "开始工作，加油！", Toast.LENGTH_SHORT).show()
+                    }
                 }
-            } else {
-                // 创建新记录
-                val record = WorkRecord(
-                    date = today,
-                    checkInTime = now,
-                    checkOutTime = null,
-                    duration = 0
-                )
-                
-                currentRecordId = dao.insertRecord(record)
-                startTime = now
-                isWorking = true
-                
+            } catch (e: Exception) {
+                e.printStackTrace()
                 runOnUiThread {
-                    updateUIForCheckIn(startTime)
-                    handler.post(timerRunnable)
-                    Toast.makeText(this@MainActivity, "开始工作，加油！", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this@MainActivity, "打卡失败：${e.message}", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -119,28 +133,35 @@ class MainActivity : AppCompatActivity() {
         handler.removeCallbacks(timerRunnable)
         
         executor.execute {
-            // 更新记录
-            dao.updateRecord(
-                WorkRecord(
-                    id = currentRecordId,
-                    date = getCurrentDate(),
-                    checkInTime = startTime,
-                    checkOutTime = endTime,
-                    duration = duration
+            try {
+                // 更新记录
+                dao.updateRecord(
+                    WorkRecord(
+                        id = currentRecordId,
+                        date = getCurrentDate(),
+                        checkInTime = startTime,
+                        checkOutTime = endTime,
+                        duration = duration
+                    )
                 )
-            )
-            
-            // 重新加载历史记录
-            val allRecords = dao.getAllRecords()
-            runOnUiThread {
-                records.clear()
-                records.addAll(allRecords)
-                binding.historyRecyclerView.adapter?.notifyDataSetChanged()
-            }
-            
-            runOnUiThread {
-                updateUIForCheckOut(endTime, duration)
-                Toast.makeText(this@MainActivity, "辛苦了，休息一下吧！", Toast.LENGTH_SHORT).show()
+                
+                // 重新加载历史记录
+                val allRecords = dao.getAllRecords()
+                runOnUiThread {
+                    records.clear()
+                    records.addAll(allRecords)
+                    binding.historyRecyclerView.adapter?.notifyDataSetChanged()
+                }
+                
+                runOnUiThread {
+                    updateUIForCheckOut(endTime, duration)
+                    Toast.makeText(this@MainActivity, "辛苦了，休息一下吧！", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                runOnUiThread {
+                    Toast.makeText(this@MainActivity, "结束失败：${e.message}", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
@@ -175,26 +196,34 @@ class MainActivity : AppCompatActivity() {
 
     private fun loadTodayRecord() {
         executor.execute {
-            val today = getCurrentDate()
-            val unfinishedRecord = dao.getUnfinishedRecord(today)
-            
-            runOnUiThread {
-                if (unfinishedRecord != null) {
-                    // 恢复未完成记录
-                    currentRecordId = unfinishedRecord.id
-                    startTime = unfinishedRecord.checkInTime
-                    isWorking = true
-                    updateUIForCheckIn(startTime)
-                    handler.post(timerRunnable)
-                } else {
-                    resetUI()
-                }
+            try {
+                val today = getCurrentDate()
+                val unfinishedRecord = dao.getUnfinishedRecord(today)
                 
-                // 加载所有历史记录
-                val allRecords = dao.getAllRecords()
-                records.clear()
-                records.addAll(allRecords)
-                binding.historyRecyclerView.adapter?.notifyDataSetChanged()
+                runOnUiThread {
+                    if (unfinishedRecord != null) {
+                        // 恢复未完成记录
+                        currentRecordId = unfinishedRecord.id
+                        startTime = unfinishedRecord.checkInTime
+                        isWorking = true
+                        updateUIForCheckIn(startTime)
+                        handler.post(timerRunnable)
+                    } else {
+                        resetUI()
+                    }
+                    
+                    // 加载所有历史记录
+                    val allRecords = dao.getAllRecords()
+                    records.clear()
+                    records.addAll(allRecords)
+                    binding.historyRecyclerView.adapter?.notifyDataSetChanged()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                runOnUiThread {
+                    resetUI()
+                    Toast.makeText(this@MainActivity, "加载记录失败", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
