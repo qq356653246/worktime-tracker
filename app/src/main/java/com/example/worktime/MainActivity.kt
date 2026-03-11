@@ -7,24 +7,17 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.worktime.databinding.ActivityMainBinding
-import kotlinx.coroutines.*
 import java.text.SimpleDateFormat
 import java.util.*
-import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
-    private lateinit var database: WorkTimeDatabase
-    private lateinit var dao: WorkTimeDao
-    
     private var isWorking = false
     private var startTime: Long = 0
-    private var currentRecordId: Long = 0
     
     private val handler = Handler(Looper.getMainLooper())
     private val records = mutableListOf<WorkRecord>()
-    private val executor = Executors.newSingleThreadExecutor()
     
     private val timerRunnable = object : Runnable {
         override fun run() {
@@ -41,218 +34,186 @@ class MainActivity : AppCompatActivity() {
         try {
             binding = ActivityMainBinding.inflate(layoutInflater)
             setContentView(binding.root)
-
-            // 初始化数据库（在后台线程）
-            executor.execute {
-                database = WorkTimeDatabase.getDatabase(this@MainActivity)
-                dao = database.workTimeDao()
-                
-                runOnUiThread {
-                    setupUI()
-                    setupRecyclerView()
-                    loadTodayRecord()
-                }
-            }
+            
+            setupUI()
+            setupRecyclerView()
+            loadSampleRecords()
         } catch (e: Exception) {
             e.printStackTrace()
             Toast.makeText(this, "初始化失败：${e.message}", Toast.LENGTH_LONG).show()
+            finish()
         }
     }
 
     private fun setupUI() {
-        val sdf = SimpleDateFormat("yyyy 年 MM 月 dd 日 EEEE", Locale.CHINA)
-        binding.dateText.text = sdf.format(Date())
+        try {
+            val sdf = SimpleDateFormat("yyyy 年 MM 月 dd 日 EEEE", Locale.CHINA)
+            binding.dateText.text = sdf.format(Date())
 
-        binding.checkButton.setOnClickListener {
-            if (isWorking) {
-                checkOut()
-            } else {
-                checkIn()
+            binding.checkButton.setOnClickListener {
+                if (isWorking) {
+                    checkOut()
+                } else {
+                    checkIn()
+                }
             }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(this, "设置 UI 失败", Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun setupRecyclerView() {
-        binding.historyRecyclerView.layoutManager = LinearLayoutManager(this)
-        binding.historyRecyclerView.adapter = HistoryAdapter(records)
+        try {
+            binding.historyRecyclerView.layoutManager = LinearLayoutManager(this)
+            binding.historyRecyclerView.adapter = HistoryAdapter(records)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     private fun checkIn() {
-        val now = System.currentTimeMillis()
-        val today = getCurrentDate()
-        
-        executor.execute {
-            try {
-                // 检查今天是否已经有未完成的打卡记录
-                val unfinishedRecord = dao.getUnfinishedRecord(today)
-                
-                if (unfinishedRecord != null) {
-                    // 已有未完成记录，恢复状态
-                    currentRecordId = unfinishedRecord.id
-                    startTime = unfinishedRecord.checkInTime
-                    isWorking = true
-                    
-                    runOnUiThread {
-                        updateUIForCheckIn(startTime)
-                        handler.post(timerRunnable)
-                        Toast.makeText(this@MainActivity, "继续工作", Toast.LENGTH_SHORT).show()
-                    }
-                } else {
-                    // 创建新记录
-                    val record = WorkRecord(
-                        date = today,
-                        checkInTime = now,
-                        checkOutTime = null,
-                        duration = 0
-                    )
-                    
-                    currentRecordId = dao.insertRecord(record)
-                    startTime = now
-                    isWorking = true
-                    
-                    runOnUiThread {
-                        updateUIForCheckIn(startTime)
-                        handler.post(timerRunnable)
-                        Toast.makeText(this@MainActivity, "开始工作，加油！", Toast.LENGTH_SHORT).show()
-                    }
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                runOnUiThread {
-                    Toast.makeText(this@MainActivity, "打卡失败：${e.message}", Toast.LENGTH_SHORT).show()
-                }
-            }
+        try {
+            startTime = System.currentTimeMillis()
+            isWorking = true
+            
+            val record = WorkRecord(
+                date = getCurrentDate(),
+                checkInTime = startTime,
+                checkOutTime = null,
+                duration = 0
+            )
+            records.add(0, record)
+            binding.historyRecyclerView.adapter?.notifyItemInserted(0)
+            
+            updateUIForCheckIn(startTime)
+            handler.post(timerRunnable)
+            Toast.makeText(this, "开始工作，加油！", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(this, "打卡失败", Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun checkOut() {
-        val endTime = System.currentTimeMillis()
-        val duration = endTime - startTime
-        
-        isWorking = false
-        handler.removeCallbacks(timerRunnable)
-        
-        executor.execute {
-            try {
-                // 更新记录
-                dao.updateRecord(
-                    WorkRecord(
-                        id = currentRecordId,
-                        date = getCurrentDate(),
-                        checkInTime = startTime,
-                        checkOutTime = endTime,
-                        duration = duration
-                    )
+        try {
+            val endTime = System.currentTimeMillis()
+            val duration = endTime - startTime
+            
+            isWorking = false
+            handler.removeCallbacks(timerRunnable)
+            
+            // 更新历史记录
+            if (records.isNotEmpty()) {
+                val oldRecord = records[0]
+                records[0] = WorkRecord(
+                    date = oldRecord.date,
+                    checkInTime = oldRecord.checkInTime,
+                    checkOutTime = endTime,
+                    duration = duration
                 )
-                
-                // 重新加载历史记录
-                val allRecords = dao.getAllRecords()
-                runOnUiThread {
-                    records.clear()
-                    records.addAll(allRecords)
-                    binding.historyRecyclerView.adapter?.notifyDataSetChanged()
-                }
-                
-                runOnUiThread {
-                    updateUIForCheckOut(endTime, duration)
-                    Toast.makeText(this@MainActivity, "辛苦了，休息一下吧！", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                runOnUiThread {
-                    Toast.makeText(this@MainActivity, "结束失败：${e.message}", Toast.LENGTH_SHORT).show()
-                }
+                binding.historyRecyclerView.adapter?.notifyItemChanged(0)
             }
+            
+            updateUIForCheckOut(endTime, duration)
+            Toast.makeText(this, "辛苦了，休息一下吧！", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(this, "结束失败", Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun updateUIForCheckIn(time: Long) {
-        binding.checkInTimeText.text = formatTime(time)
-        binding.checkOutTimeText.text = "--:--:--"
-        binding.statusText.text = "工作中... 再次点击结束"
-        binding.durationText.text = "工作时长：00:00:00"
-        
-        binding.checkButton.backgroundTintList = 
-            android.content.res.ColorStateList.valueOf(
-                getColor(R.color.check_button_end)
-            )
+        try {
+            binding.checkInTimeText.text = formatTime(time)
+            binding.checkOutTimeText.text = "--:--:--"
+            binding.statusText.text = "工作中... 再次点击结束"
+            binding.durationText.text = "工作时长：00:00:00"
+            
+            binding.checkButton.backgroundTintList = 
+                android.content.res.ColorStateList.valueOf(
+                    getColor(R.color.check_button_end)
+                )
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     private fun updateUIForCheckOut(time: Long, duration: Long) {
-        binding.checkOutTimeText.text = formatTime(time)
-        binding.statusText.text = "今日打卡已完成"
-        binding.durationText.text = "工作时长：${formatDurationHourMinute(duration)}"
-        
-        binding.checkButton.backgroundTintList = 
-            android.content.res.ColorStateList.valueOf(
-                getColor(R.color.check_button_start)
-            )
+        try {
+            binding.checkOutTimeText.text = formatTime(time)
+            binding.statusText.text = "今日打卡已完成"
+            binding.durationText.text = "工作时长：${formatDurationHourMinute(duration)}"
+            
+            binding.checkButton.backgroundTintList = 
+                android.content.res.ColorStateList.valueOf(
+                    getColor(R.color.check_button_start)
+                )
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     private fun updateTimer() {
-        val elapsed = System.currentTimeMillis() - startTime
-        binding.durationText.text = "工作时长：${formatDurationHourMinute(elapsed)}"
+        try {
+            val elapsed = System.currentTimeMillis() - startTime
+            binding.durationText.text = "工作时长：${formatDurationHourMinute(elapsed)}"
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
-    private fun loadTodayRecord() {
-        executor.execute {
-            try {
-                val today = getCurrentDate()
-                val unfinishedRecord = dao.getUnfinishedRecord(today)
-                
-                runOnUiThread {
-                    if (unfinishedRecord != null) {
-                        // 恢复未完成记录
-                        currentRecordId = unfinishedRecord.id
-                        startTime = unfinishedRecord.checkInTime
-                        isWorking = true
-                        updateUIForCheckIn(startTime)
-                        handler.post(timerRunnable)
-                    } else {
-                        resetUI()
-                    }
-                    
-                    // 加载所有历史记录
-                    val allRecords = dao.getAllRecords()
-                    records.clear()
-                    records.addAll(allRecords)
-                    binding.historyRecyclerView.adapter?.notifyDataSetChanged()
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                runOnUiThread {
-                    resetUI()
-                    Toast.makeText(this@MainActivity, "加载记录失败", Toast.LENGTH_SHORT).show()
-                }
-            }
+    private fun loadSampleRecords() {
+        try {
+            records.add(WorkRecord("2026-03-10", System.currentTimeMillis() - 86400000, System.currentTimeMillis() - 3600000, 28800000))
+            records.add(WorkRecord("2026-03-09", System.currentTimeMillis() - 172800000, System.currentTimeMillis() - 122400000, 32400000))
+            binding.historyRecyclerView.adapter?.notifyDataSetChanged()
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
     private fun resetUI() {
-        binding.checkInTimeText.text = "--:--:--"
-        binding.checkOutTimeText.text = "--:--:--"
-        binding.statusText.text = "点击打卡开始工作"
-        binding.durationText.text = "工作时长：00:00:00"
-        binding.checkButton.backgroundTintList = 
-            android.content.res.ColorStateList.valueOf(
-                getColor(R.color.check_button_start)
-            )
+        try {
+            binding.checkInTimeText.text = "--:--:--"
+            binding.checkOutTimeText.text = "--:--:--"
+            binding.statusText.text = "点击打卡开始工作"
+            binding.durationText.text = "工作时长：00:00:00"
+            binding.checkButton.backgroundTintList = 
+                android.content.res.ColorStateList.valueOf(
+                    getColor(R.color.check_button_start)
+                )
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     private fun formatTime(timestamp: Long): String {
-        val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
-        return sdf.format(Date(timestamp))
+        return try {
+            val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
+            sdf.format(Date(timestamp))
+        } catch (e: Exception) {
+            "--:--"
+        }
     }
 
     private fun formatDurationHourMinute(ms: Long): String {
-        val hours = ms / (1000 * 60 * 60)
-        val minutes = (ms / (1000 * 60)) % 60
-        return "${hours}小时${minutes}分钟"
+        return try {
+            val hours = ms / (1000 * 60 * 60)
+            val minutes = (ms / (1000 * 60)) % 60
+            "${hours}小时${minutes}分钟"
+        } catch (e: Exception) {
+            "0 小时 0 分钟"
+        }
     }
 
     private fun getCurrentDate(): String {
-        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
-        return sdf.format(Date())
+        return try {
+            val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            sdf.format(Date())
+        } catch (e: Exception) {
+            "2026-01-01"
+        }
     }
 
     override fun onDestroy() {

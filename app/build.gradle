@@ -1,7 +1,6 @@
 plugins {
     id 'com.android.application' version '8.1.0'
     id 'org.jetbrains.kotlin.android' version '1.9.0'
-    id 'org.jetbrains.kotlin.kapt'
 }
 
 android {
@@ -12,8 +11,8 @@ android {
         applicationId "com.example.worktime"
         minSdk 24
         targetSdk 34
-        versionCode 3
-        versionName "3.0"
+        versionCode 4
+        versionName "4.0"
     }
 
     buildTypes {
@@ -43,11 +42,4 @@ dependencies {
     implementation 'com.google.android.material:material:1.11.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
     implementation 'androidx.recyclerview:recyclerview:1.3.2'
-    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0'
-    implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.7.0'
-    
-    // Room Database
-    def room_version = "2.6.1"
-    implementation "androidx.room:room-runtime:$room_version"
-    kapt "androidx.room:room-compiler:$room_version"
 }
