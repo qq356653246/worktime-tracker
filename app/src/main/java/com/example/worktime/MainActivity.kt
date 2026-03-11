@@ -8,21 +8,15 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.worktime.databinding.ActivityMainBinding
 import java.text.SimpleDateFormat
 import java.util.*
-import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
-    private lateinit var database: AttendanceDatabase
-    private lateinit var dao: AttendanceDao
-    
     private var isWorking = false
-    private var currentRecordId: Long = 0
     private var startTime: Long = 0
     
     private val handler = Handler(Looper.getMainLooper())
-    private val records = mutableListOf<AttendanceRecord>()
-    private val executor = Executors.newSingleThreadExecutor()
+    private val records = mutableListOf<WorkRecord>()
     
     private val timerRunnable = object : Runnable {
         override fun run() {
@@ -38,22 +32,15 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // 初始化数据库
-        database = AttendanceDatabase.getDatabase(this)
-        dao = database.attendanceDao()
-
         setupUI()
         setupRecyclerView()
-        loadTodayRecord()
-        loadAllRecords()
+        loadSampleRecords()
     }
 
     private fun setupUI() {
-        // 显示今天日期
         val sdf = SimpleDateFormat("yyyy 年 MM 月 dd 日 EEEE", Locale.CHINA)
         binding.dateText.text = sdf.format(Date())
 
-        // 打卡按钮点击事件
         binding.checkButton.setOnClickListener {
             if (isWorking) {
                 checkOut()
@@ -70,20 +57,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun checkIn() {
         startTime = System.currentTimeMillis()
-        val date = getCurrentDate()
-        
-        // 创建新记录
-        val record = AttendanceRecord(
-            date = date,
-            checkInTime = startTime,
-            checkOutTime = null,
-            duration = 0
-        )
-        
-        executor.execute {
-            currentRecordId = dao.insertRecord(record)
-        }
-        
         isWorking = true
         updateUIForCheckIn(startTime)
         handler.post(timerRunnable)
@@ -96,31 +69,24 @@ class MainActivity : AppCompatActivity() {
         isWorking = false
         handler.removeCallbacks(timerRunnable)
         
-        // 更新记录
-        executor.execute {
-            dao.updateRecord(
-                AttendanceRecord(
-                    id = currentRecordId,
-                    date = getCurrentDate(),
-                    checkInTime = startTime,
-                    checkOutTime = endTime,
-                    duration = duration
-                )
-            )
-            loadAllRecords()
-        }
+        val record = WorkRecord(
+            date = getCurrentDate(),
+            startTime = formatTime(startTime),
+            endTime = formatTime(endTime),
+            duration = formatDuration(duration)
+        )
+        records.add(0, record)
+        binding.historyRecyclerView.adapter?.notifyItemInserted(0)
         
         updateUIForCheckOut(endTime, duration)
     }
 
     private fun updateUIForCheckIn(time: Long) {
-        val timeStr = formatTime(time)
-        binding.checkInTimeText.text = timeStr
+        binding.checkInTimeText.text = formatTime(time)
         binding.checkOutTimeText.text = "--:--:--"
         binding.statusText.text = "工作中... 再次点击结束"
         binding.durationText.text = "工作时长：00:00:00"
         
-        // 改变按钮颜色为结束打卡
         binding.checkButton.backgroundTintList = 
             android.content.res.ColorStateList.valueOf(
                 getColor(R.color.check_button_end)
@@ -128,12 +94,10 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateUIForCheckOut(time: Long, duration: Long) {
-        val timeStr = formatTime(time)
-        binding.checkOutTimeText.text = timeStr
+        binding.checkOutTimeText.text = formatTime(time)
         binding.statusText.text = "今日打卡已完成"
         binding.durationText.text = "工作时长：${formatDuration(duration)}"
         
-        // 改变按钮颜色为开始打卡
         binding.checkButton.backgroundTintList = 
             android.content.res.ColorStateList.valueOf(
                 getColor(R.color.check_button_start)
@@ -145,47 +109,10 @@ class MainActivity : AppCompatActivity() {
         binding.durationText.text = "工作时长：${formatDuration(elapsed)}"
     }
 
-    private fun loadTodayRecord() {
-        executor.execute {
-            val today = getCurrentDate()
-            val unfinishedRecord = dao.getUnfinishedRecord(today)
-            
-            runOnUiThread {
-                if (unfinishedRecord != null) {
-                    // 恢复未完成记录
-                    currentRecordId = unfinishedRecord.id
-                    startTime = unfinishedRecord.checkInTime
-                    isWorking = true
-                    updateUIForCheckIn(startTime)
-                    handler.post(timerRunnable)
-                } else {
-                    // 没有未完成记录
-                    resetUI()
-                }
-            }
-        }
-    }
-
-    private fun loadAllRecords() {
-        executor.execute {
-            val allRecords = dao.allRecords
-            runOnUiThread {
-                records.clear()
-                records.addAll(allRecords)
-                binding.historyRecyclerView.adapter?.notifyDataSetChanged()
-            }
-        }
-    }
-
-    private fun resetUI() {
-        binding.checkInTimeText.text = "--:--:--"
-        binding.checkOutTimeText.text = "--:--:--"
-        binding.statusText.text = "点击打卡开始工作"
-        binding.durationText.text = "工作时长：00:00:00"
-        binding.checkButton.backgroundTintList = 
-            android.content.res.ColorStateList.valueOf(
-                getColor(R.color.check_button_start)
-            )
+    private fun loadSampleRecords() {
+        records.add(WorkRecord("2026-03-10", "09:00", "18:00", "9 小时 0 分钟"))
+        records.add(WorkRecord("2026-03-09", "09:15", "18:30", "9 小时 15 分钟"))
+        binding.historyRecyclerView.adapter?.notifyDataSetChanged()
     }
 
     private fun formatTime(timestamp: Long): String {
