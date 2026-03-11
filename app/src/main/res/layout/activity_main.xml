@@ -15,17 +15,34 @@
         android:orientation="vertical"
         android:paddingBottom="32dp">
 
-        <!-- 标题 -->
-        <TextView
-            android:id="@+id/titleText"
-            android:layout_width="wrap_content"
+        <!-- 标题栏 -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="工时记录"
-            android:textSize="28sp"
-            android:textStyle="bold"
-            android:textColor="#333333"
-            android:layout_marginTop="32dp"
-            android:layout_gravity="center_horizontal"/>
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:id="@+id/titleText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="工时记录"
+                android:textSize="24sp"
+                android:textStyle="bold"
+                android:textColor="#333333"/>
+
+            <ImageButton
+                android:id="@+id/settingsButton"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@android:drawable/ic_menu_preferences"
+                android:contentDescription="设置"
+                android:padding="12dp"/>
+
+        </LinearLayout>
 
         <!-- 日期显示 -->
         <TextView
@@ -181,12 +198,25 @@
                     android:id="@+id/durationText"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="工作时长：0 小时 0 分钟"
+                    android:text="工作时长：0 小时 0 分钟 0 秒"
                     android:textSize="18sp"
                     android:textStyle="bold"
                     android:textColor="#2196F3"
                     android:layout_marginTop="16dp"
                     android:layout_gravity="center_horizontal"/>
+
+                <!-- 休息时长 -->
+                <TextView
+                    android:id="@+id/breakDurationText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="休息时长：0 小时 0 分钟"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:textColor="#FF9800"
+                    android:layout_marginTop="8dp"
+                    android:layout_gravity="center_horizontal"
+                    android:visibility="gone"/>
 
             </LinearLayout>
 
@@ -224,17 +254,6 @@
                     android:textSize="14sp"
                     android:textColor="#666666"
                     android:layout_marginTop="8dp"/>
-
-                <!-- 柱状图占位 -->
-                <TextView
-                    android:id="@+id/barChartPlaceholder"
-                    android:layout_width="match_parent"
-                    android:layout_height="200dp"
-                    android:layout_marginTop="16dp"
-                    android:gravity="center"
-                    android:text="图表功能开发中..."
-                    android:textColor="#999999"
-                    android:textSize="14sp"/>
 
             </LinearLayout>
 

@@ -1,8 +1,11 @@
 package com.example.worktime
 
+import android.app.AlertDialog
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.view.LayoutInflater
+import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -13,6 +16,11 @@ import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
 
+data class BreakTime(
+    val startTime: String,  // HH:mm
+    val endTime: String     // HH:mm
+)
+
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
@@ -21,6 +29,8 @@ class MainActivity : AppCompatActivity() {
     private var isWorking = false
     private var startTime: Long = 0
     private var currentRecordIndex: Int = -1
+    
+    private var breakTimes = mutableListOf<BreakTime>()
     
     private val handler = Handler(Looper.getMainLooper())
     private val records = mutableListOf<WorkRecord>()
@@ -43,6 +53,7 @@ class MainActivity : AppCompatActivity() {
             
             prefs = getSharedPreferences("worktime_data", MODE_PRIVATE)
             
+            loadBreakTimes()
             setupUI()
             setupRecyclerView()
             loadSavedRecords()
@@ -54,6 +65,25 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun loadBreakTimes() {
+        try {
+            val json = prefs.getString("breakTimes", null)
+            if (json != null) {
+                val gson = Gson()
+                val type = object : TypeToken<MutableList<BreakTime>>() {}.type
+                breakTimes = gson.fromJson(json, type)
+            } else {
+                // 默认休息时间
+                breakTimes = mutableListOf(
+                    BreakTime("12:00", "13:00")
+                )
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            breakTimes = mutableListOf(BreakTime("12:00", "13:00"))
+        }
+    }
+
     private fun setupUI() {
         try {
             val sdf = SimpleDateFormat("yyyy 年 MM 月 dd 日 EEEE", Locale.CHINA)
@@ -62,24 +92,125 @@ class MainActivity : AppCompatActivity() {
             binding.checkButton.setOnClickListener {
                 handleCheckClick()
             }
+            
+            binding.settingsButton.setOnClickListener {
+                showBreakTimeSettings()
+            }
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+    }
+
+    private fun showBreakTimeSettings() {
+        try {
+            val builder = AlertDialog.Builder(this)
+            builder.setTitle("设置休息时间")
+            
+            val inflater = LayoutInflater.from(this)
+            val view = inflater.inflate(R.layout.dialog_break_time, null)
+            val editText = view.findViewById<EditText>(R.id.breakTimeEditText)
+            editText.setText(breakTimes.joinToString(",") { "${it.startTime}-${it.endTime}" })
+            
+            builder.setView(view)
+            builder.setPositiveButton("保存") { dialog, _ ->
+                val text = editText.text.toString()
+                parseBreakTimes(text)
+                saveBreakTimes()
+                Toast.makeText(this, "休息时间已保存", Toast.LENGTH_SHORT).show()
+                dialog.dismiss()
+            }
+            builder.setNegativeButton("取消") { dialog, _ ->
+                dialog.dismiss()
+            }
+            builder.show()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(this, "设置失败：${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun parseBreakTimes(text: String) {
+        breakTimes.clear()
+        val parts = text.split(",", "，")
+        for (part in parts) {
+            val trimmed = part.trim()
+            if (trimmed.contains("-")) {
+                val times = trimmed.split("-")
+                if (times.size == 2) {
+                    breakTimes.add(BreakTime(times[0].trim(), times[1].trim()))
+                }
+            }
+        }
+        if (breakTimes.isEmpty()) {
+            breakTimes.add(BreakTime("12:00", "13:00"))
+        }
+    }
+
+    private fun saveBreakTimes() {
+        try {
+            val editor = prefs.edit()
+            val gson = Gson()
+            val json = gson.toJson(breakTimes)
+            editor.putString("breakTimes", json)
+            editor.apply()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun calculateBreakDuration(): Long {
+        try {
+            if (currentRecordIndex < 0 || currentRecordIndex >= records.size) return 0
+            
+            val record = records[currentRecordIndex]
+            if (record.checkOutTime == null) return 0
+            
+            var totalBreakMs = 0L
+            val calendar = Calendar.getInstance()
+            
+            for (breakTime in breakTimes) {
+                val (breakStartHour, breakStartMin) = breakTime.startTime.split(":").map { it.toInt() }
+                val (breakEndHour, breakEndMin) = breakTime.endTime.split(":").map { it.toInt() }
+                
+                calendar.time = Date(record.checkInTime)
+                calendar.set(Calendar.HOUR_OF_DAY, breakStartHour)
+                calendar.set(Calendar.MINUTE, breakStartMin)
+                calendar.set(Calendar.SECOND, 0)
+                val breakStartMs = calendar.timeInMillis
+                
+                calendar.time = Date(record.checkInTime)
+                calendar.set(Calendar.HOUR_OF_DAY, breakEndHour)
+                calendar.set(Calendar.MINUTE, breakEndMin)
+                calendar.set(Calendar.SECOND, 0)
+                val breakEndMs = calendar.timeInMillis
+                
+                if (breakStartMs >= record.checkInTime && breakEndMs <= record.checkOutTime!!) {
+                    totalBreakMs += (breakEndMs - breakStartMs)
+                } else if (breakStartMs < record.checkInTime && breakEndMs > record.checkInTime && breakEndMs <= record.checkOutTime!!) {
+                    totalBreakMs += (breakEndMs - record.checkInTime)
+                } else if (breakStartMs >= record.checkInTime && breakStartMs < record.checkOutTime!! && breakEndMs > record.checkOutTime!!) {
+                    totalBreakMs += (record.checkOutTime!! - breakStartMs)
+                } else if (breakStartMs < record.checkInTime && breakEndMs > record.checkOutTime!!) {
+                    totalBreakMs += (record.checkOutTime!! - record.checkInTime)
+                }
+            }
+            
+            return totalBreakMs
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return 0
         }
     }
 
     private fun handleCheckClick() {
         val now = System.currentTimeMillis()
         val today = getCurrentDate()
-        
-        // 查找今天的记录索引
         val todayIndex = records.indexOfFirst { it.date == today }
         currentRecordIndex = todayIndex
         
         if (todayIndex == -1) {
-            // 情况 1: 今天还没有打卡记录 - 开始打卡
             checkIn(today, now)
         } else {
-            // 情况 2/3/4: 今天已有记录 - 更新结束时间
             checkOut(todayIndex, now)
         }
     }
@@ -119,17 +250,18 @@ class MainActivity : AppCompatActivity() {
             }
             
             val oldRecord = records[index]
-            val duration = time - oldRecord.checkInTime
+            val rawDuration = time - oldRecord.checkInTime
+            val breakDuration = calculateBreakDurationForNewTime(time, oldRecord.checkInTime)
+            val netDuration = rawDuration - breakDuration
             
             isWorking = false
             handler.removeCallbacks(timerRunnable)
             
-            // 更新记录 - 总是使用最新的结束时间
             records[index] = WorkRecord(
                 date = oldRecord.date,
                 checkInTime = oldRecord.checkInTime,
                 checkOutTime = time,
-                duration = duration
+                duration = netDuration
             )
             
             saveRecords()
@@ -137,11 +269,47 @@ class MainActivity : AppCompatActivity() {
             
             binding.historyRecyclerView.adapter?.notifyItemChanged(index)
             
-            updateUIForCheckOut(time, duration)
+            updateUIForCheckOut(time, netDuration, breakDuration)
             Toast.makeText(this, "打卡成功！", Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
             e.printStackTrace()
             Toast.makeText(this, "打卡失败：${e.message}", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    private fun calculateBreakDurationForNewTime(checkOutTime: Long, checkInTime: Long): Long {
+        try {
+            var totalBreakMs = 0L
+            val calendar = Calendar.getInstance()
+            
+            for (breakTime in breakTimes) {
+                val (breakStartHour, breakStartMin) = breakTime.startTime.split(":").map { it.toInt() }
+                val (breakEndHour, breakEndMin) = breakTime.endTime.split(":").map { it.toInt() }
+                
+                calendar.time = Date(checkInTime)
+                calendar.set(Calendar.HOUR_OF_DAY, breakStartHour)
+                calendar.set(Calendar.MINUTE, breakStartMin)
+                calendar.set(Calendar.SECOND, 0)
+                val breakStartMs = calendar.timeInMillis
+                
+                calendar.time = Date(checkInTime)
+                calendar.set(Calendar.HOUR_OF_DAY, breakEndHour)
+                calendar.set(Calendar.MINUTE, breakEndMin)
+                calendar.set(Calendar.SECOND, 0)
+                val breakEndMs = calendar.timeInMillis
+                
+                val actualStart = maxOf(breakStartMs, checkInTime)
+                val actualEnd = minOf(breakEndMs, checkOutTime)
+                
+                if (actualEnd > actualStart) {
+                    totalBreakMs += (actualEnd - actualStart)
+                }
+            }
+            
+            return totalBreakMs
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return 0
         }
     }
 
@@ -151,6 +319,7 @@ class MainActivity : AppCompatActivity() {
             binding.checkOutTimeText.text = "--:--:--"
             binding.statusText.text = "工作中... 再次点击结束"
             binding.durationText.text = "工作时长：0 小时 0 分钟 0 秒"
+            binding.breakDurationText.visibility = android.view.View.GONE
             
             binding.checkButton.backgroundTintList = 
                 android.content.res.ColorStateList.valueOf(
@@ -161,11 +330,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun updateUIForCheckOut(time: Long, duration: Long) {
+    private fun updateUIForCheckOut(time: Long, netDuration: Long, breakDuration: Long) {
         try {
             binding.checkOutTimeText.text = formatTime(time)
             binding.statusText.text = "今日打卡已完成"
-            binding.durationText.text = "工作时长：${formatDuration(duration)}"
+            binding.durationText.text = "净工作时长：${formatDuration(netDuration)}"
+            
+            if (breakDuration > 0) {
+                binding.breakDurationText.text = "休息时长：${formatDurationHourMinute(breakDuration)}"
+                binding.breakDurationText.visibility = android.view.View.VISIBLE
+            } else {
+                binding.breakDurationText.visibility = android.view.View.GONE
+            }
             
             binding.checkButton.backgroundTintList = 
                 android.content.res.ColorStateList.valueOf(
@@ -179,7 +355,14 @@ class MainActivity : AppCompatActivity() {
     private fun updateTimer() {
         try {
             val elapsed = System.currentTimeMillis() - startTime
-            binding.durationText.text = "工作时长：${formatDuration(elapsed)}"
+            val breakDuration = calculateBreakDurationForNewTime(System.currentTimeMillis(), startTime)
+            val netElapsed = elapsed - breakDuration
+            binding.durationText.text = "净工作时长：${formatDuration(netElapsed)}"
+            
+            if (breakDuration > 0) {
+                binding.breakDurationText.text = "已休息：${formatDurationHourMinute(breakDuration)}"
+                binding.breakDurationText.visibility = android.view.View.VISIBLE
+            }
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -216,14 +399,13 @@ class MainActivity : AppCompatActivity() {
                     currentRecordIndex = todayIndex
                     
                     if (todayRecord.checkOutTime == null) {
-                        // 工作中状态
                         isWorking = true
                         startTime = todayRecord.checkInTime
                         updateUIForCheckIn(startTime)
                         handler.post(timerRunnable)
                     } else {
-                        // 已完成状态
-                        updateUIForCheckOut(todayRecord.checkOutTime!!, todayRecord.duration)
+                        val breakDuration = calculateBreakDuration()
+                        updateUIForCheckOut(todayRecord.checkOutTime!!, todayRecord.duration, breakDuration)
                     }
                 } else {
                     resetUI()
@@ -240,9 +422,6 @@ class MainActivity : AppCompatActivity() {
     private fun updateMonthStats() {
         try {
             val calendar = Calendar.getInstance()
-            val year = calendar.get(Calendar.YEAR)
-            val month = calendar.get(Calendar.MONTH)
-            
             calendar.set(Calendar.DAY_OF_MONTH, 1)
             val monthStart = calendar.timeInMillis
             calendar.set(Calendar.DAY_OF_MONTH, calendar.getActualMaximum(Calendar.DAY_OF_MONTH))
@@ -277,6 +456,7 @@ class MainActivity : AppCompatActivity() {
             binding.checkOutTimeText.text = "--:--:--"
             binding.statusText.text = "点击打卡开始工作"
             binding.durationText.text = "工作时长：0 小时 0 分钟 0 秒"
+            binding.breakDurationText.visibility = android.view.View.GONE
             binding.checkButton.backgroundTintList = 
                 android.content.res.ColorStateList.valueOf(
                     getColor(R.color.check_button_start)
@@ -303,6 +483,16 @@ class MainActivity : AppCompatActivity() {
             "${hours}小时${minutes}分钟${seconds}秒"
         } catch (e: Exception) {
             "0 小时 0 分钟 0 秒"
+        }
+    }
+
+    private fun formatDurationHourMinute(ms: Long): String {
+        return try {
+            val hours = ms / (1000 * 60 * 60)
+            val minutes = (ms / (1000 * 60)) % 60
+            "${hours}小时${minutes}分钟"
+        } catch (e: Exception) {
+            "0 小时 0 分钟"
         }
     }
 
