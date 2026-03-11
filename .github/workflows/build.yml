@@ -22,10 +22,21 @@ jobs:
       run: chmod +x gradlew
 
     - name: Build Debug APK
-      run: ./gradlew assembleDebug --no-daemon
+      run: |
+        ./gradlew assembleDebug --stacktrace 2>&1 | tee build.log
+      continue-on-error: true
+
+    - name: Show build log
+      run: cat build.log || true
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: app-debug.apk
         path: app/build/outputs/apk/debug/app-debug.apk
+
+    - name: Upload build log
+      uses: actions/upload-artifact@v4
+      with:
+        name: build.log
+        path: build.log
