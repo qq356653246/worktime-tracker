@@ -225,12 +225,16 @@
                     android:textColor="#666666"
                     android:layout_marginTop="8dp"/>
 
-                <!-- 柱状图 -->
-                <com.github.mikephil.charting.charts.BarChart
-                    android:id="@+id/barChart"
+                <!-- 柱状图占位 -->
+                <TextView
+                    android:id="@+id/barChartPlaceholder"
                     android:layout_width="match_parent"
                     android:layout_height="200dp"
-                    android:layout_marginTop="16dp"/>
+                    android:layout_marginTop="16dp"
+                    android:gravity="center"
+                    android:text="图表功能开发中..."
+                    android:textColor="#999999"
+                    android:textSize="14sp"/>
 
             </LinearLayout>
 

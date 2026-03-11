@@ -1,6 +1,5 @@
 package com.example.worktime
 
-import android.graphics.Color
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -8,11 +7,6 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.worktime.databinding.ActivityMainBinding
-import com.github.mikephil.charting.charts.BarChart
-import com.github.mikephil.charting.components.XAxis
-import com.github.mikephil.charting.data.BarData
-import com.github.mikephil.charting.data.BarDataSet
-import com.github.mikephil.charting.data.BarEntry
 import com.google.code.gson.Gson
 import com.google.code.gson.reflect.TypeToken
 import java.text.SimpleDateFormat
@@ -52,7 +46,6 @@ class MainActivity : AppCompatActivity() {
             setupRecyclerView()
             loadSavedRecords()
             updateMonthStats()
-            setupBarChart()
         } catch (e: Exception) {
             e.printStackTrace()
             Toast.makeText(this, "初始化失败：${e.message}", Toast.LENGTH_LONG).show()
@@ -79,13 +72,10 @@ class MainActivity : AppCompatActivity() {
         val todayRecord = records.find { it.date == today }
         
         if (todayRecord == null) {
-            // 今天第一次打卡 - 记录开始时间
             checkIn(today, now)
         } else if (todayRecord.checkOutTime == null) {
-            // 已有开始时间，更新结束时间
             checkOut(today, now)
         } else {
-            // 今天已完成打卡
             Toast.makeText(this, "今日打卡已完成", Toast.LENGTH_SHORT).show()
         }
     }
@@ -134,7 +124,6 @@ class MainActivity : AppCompatActivity() {
                 
                 saveRecords()
                 updateMonthStats()
-                updateBarChart()
                 
                 updateUIForCheckOut(time, duration)
                 Toast.makeText(this, "辛苦了，休息一下吧！", Toast.LENGTH_SHORT).show()
@@ -149,7 +138,7 @@ class MainActivity : AppCompatActivity() {
             binding.checkInTimeText.text = formatTime(time)
             binding.checkOutTimeText.text = "--:--:--"
             binding.statusText.text = "工作中... 再次点击结束"
-            binding.durationText.text = "工作时长：0 小时 0 分钟"
+            binding.durationText.text = "工作时长：0 小时 0 分钟 0 秒"
             
             binding.checkButton.backgroundTintList = 
                 android.content.res.ColorStateList.valueOf(
@@ -207,7 +196,6 @@ class MainActivity : AppCompatActivity() {
                 records.addAll(savedRecords)
                 binding.historyRecyclerView.adapter?.notifyDataSetChanged()
                 
-                // 恢复工作状态
                 val today = getCurrentDate()
                 val todayRecord = records.find { it.date == today && it.checkOutTime == null }
                 if (todayRecord != null) {
@@ -252,69 +240,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupBarChart() {
-        try {
-            val chart = binding.barChart
-            chart.description.isEnabled = false
-            chart.setDrawGridBackground(false)
-            
-            val xAxis = chart.xAxis
-            xAxis.position = XAxis.XAxisPosition.BOTTOM
-            xAxis.setDrawGridLines(false)
-            
-            chart.axisLeft.setDrawGridLines(true)
-            chart.axisRight.isEnabled = false
-            
-            chart.legend.isEnabled = false
-            
-            updateBarChart()
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
-    private fun updateBarChart() {
-        try {
-            val chart = binding.barChart
-            val calendar = Calendar.getInstance()
-            
-            // 获取最近 7 天的数据
-            val entries = mutableListOf<BarEntry>()
-            val labels = mutableListOf<String>()
-            
-            for (i in 6 downTo 0) {
-                calendar.add(Calendar.DAY_OF_YEAR, -i)
-                val dateStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(calendar.time)
-                val dayLabel = SimpleDateFormat("MM/dd", Locale.getDefault()).format(calendar.time)
-                
-                val dayRecord = records.find { it.date == dateStr && it.checkOutTime != null }
-                val hours = if (dayRecord != null) {
-                    dayRecord.duration.toFloat() / (1000 * 60 * 60)
-                } else {
-                    0f
-                }
-                
-                entries.add(BarEntry(i.toFloat(), hours))
-                labels.add(dayLabel)
-            }
-            
-            val dataSet = BarDataSet(entries, "工时")
-            dataSet.color = Color.parseColor("#2196F3")
-            dataSet.valueTextColor = Color.parseColor("#666666")
-            dataSet.valueTextSize = 10f
-            
-            val barData = BarData(dataSet)
-            chart.data = barData
-            
-            chart.xAxis.valueFormatter = object : com.github.mikephil.charting.formatter.IndexAxisValueFormatter(labels) {}
-            chart.xAxis.labelCount = 7
-            
-            chart.invalidate()
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
     private fun setupRecyclerView() {
         try {
             binding.historyRecyclerView.layoutManager = LinearLayoutManager(this)
@@ -329,7 +254,7 @@ class MainActivity : AppCompatActivity() {
             binding.checkInTimeText.text = "--:--:--"
             binding.checkOutTimeText.text = "--:--:--"
             binding.statusText.text = "点击打卡开始工作"
-            binding.durationText.text = "工作时长：0 小时 0 分钟"
+            binding.durationText.text = "工作时长：0 小时 0 分钟 0 秒"
             binding.checkButton.backgroundTintList = 
                 android.content.res.ColorStateList.valueOf(
                     getColor(R.color.check_button_start)
