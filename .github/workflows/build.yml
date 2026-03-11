@@ -21,10 +21,15 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
+    - name: Run self tests
+      run: ./gradlew test --tests "com.example.worktime.WorkTimeSelfTest" --info
+
     - name: Build Debug APK
+      if: success()
       run: ./gradlew assembleDebug --no-daemon
 
     - name: Upload APK
+      if: success()
       uses: actions/upload-artifact@v4
       with:
         name: worktime-tracker-apk
