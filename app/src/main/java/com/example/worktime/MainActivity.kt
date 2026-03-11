@@ -1,7 +1,6 @@
 package com.example.worktime
 
-import android.content.Context
-import android.content.SharedPreferences
+import android.graphics.Color
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -9,15 +8,21 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.worktime.databinding.ActivityMainBinding
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
+import com.github.mikephil.charting.charts.BarChart
+import com.github.mikephil.charting.components.XAxis
+import com.github.mikephil.charting.data.BarData
+import com.github.mikephil.charting.data.BarDataSet
+import com.github.mikephil.charting.data.BarEntry
+import com.google.code.gson.Gson
+import com.google.code.gson.reflect.TypeToken
 import java.text.SimpleDateFormat
 import java.util.*
+import java.util.concurrent.TimeUnit
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
-    private lateinit var prefs: SharedPreferences
+    private lateinit var prefs: android.content.SharedPreferences
     
     private var isWorking = false
     private var startTime: Long = 0
@@ -41,12 +46,13 @@ class MainActivity : AppCompatActivity() {
             binding = ActivityMainBinding.inflate(layoutInflater)
             setContentView(binding.root)
             
-            // 初始化 SharedPreferences
-            prefs = getSharedPreferences("worktime_data", Context.MODE_PRIVATE)
+            prefs = getSharedPreferences("worktime_data", MODE_PRIVATE)
             
             setupUI()
             setupRecyclerView()
             loadSavedRecords()
+            updateMonthStats()
+            setupBarChart()
         } catch (e: Exception) {
             e.printStackTrace()
             Toast.makeText(this, "初始化失败：${e.message}", Toast.LENGTH_LONG).show()
@@ -60,81 +66,81 @@ class MainActivity : AppCompatActivity() {
             binding.dateText.text = sdf.format(Date())
 
             binding.checkButton.setOnClickListener {
-                if (isWorking) {
-                    checkOut()
-                } else {
-                    checkIn()
-                }
+                handleCheckClick()
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            Toast.makeText(this, "设置 UI 失败", Toast.LENGTH_SHORT).show()
         }
     }
 
-    private fun setupRecyclerView() {
-        try {
-            binding.historyRecyclerView.layoutManager = LinearLayoutManager(this)
-            binding.historyRecyclerView.adapter = HistoryAdapter(records)
-        } catch (e: Exception) {
-            e.printStackTrace()
+    private fun handleCheckClick() {
+        val now = System.currentTimeMillis()
+        val today = getCurrentDate()
+        val todayRecord = records.find { it.date == today }
+        
+        if (todayRecord == null) {
+            // 今天第一次打卡 - 记录开始时间
+            checkIn(today, now)
+        } else if (todayRecord.checkOutTime == null) {
+            // 已有开始时间，更新结束时间
+            checkOut(today, now)
+        } else {
+            // 今天已完成打卡
+            Toast.makeText(this, "今日打卡已完成", Toast.LENGTH_SHORT).show()
         }
     }
 
-    private fun checkIn() {
+    private fun checkIn(date: String, time: Long) {
         try {
-            startTime = System.currentTimeMillis()
+            startTime = time
             isWorking = true
             
             val record = WorkRecord(
-                date = getCurrentDate(),
-                checkInTime = startTime,
+                date = date,
+                checkInTime = time,
                 checkOutTime = null,
                 duration = 0
             )
             records.add(0, record)
             binding.historyRecyclerView.adapter?.notifyItemInserted(0)
             
-            // 保存到 SharedPreferences
             saveRecords()
             
-            updateUIForCheckIn(startTime)
+            updateUIForCheckIn(time)
             handler.post(timerRunnable)
             Toast.makeText(this, "开始工作，加油！", Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
             e.printStackTrace()
-            Toast.makeText(this, "打卡失败", Toast.LENGTH_SHORT).show()
         }
     }
 
-    private fun checkOut() {
+    private fun checkOut(date: String, time: Long) {
         try {
-            val endTime = System.currentTimeMillis()
-            val duration = endTime - startTime
-            
-            isWorking = false
-            handler.removeCallbacks(timerRunnable)
-            
-            // 更新历史记录
-            if (records.isNotEmpty()) {
-                val oldRecord = records[0]
-                records[0] = WorkRecord(
-                    date = oldRecord.date,
+            val index = records.indexOfFirst { it.date == date }
+            if (index >= 0) {
+                val oldRecord = records[index]
+                val duration = time - oldRecord.checkInTime
+                
+                isWorking = false
+                handler.removeCallbacks(timerRunnable)
+                
+                records[index] = WorkRecord(
+                    date = date,
                     checkInTime = oldRecord.checkInTime,
-                    checkOutTime = endTime,
+                    checkOutTime = time,
                     duration = duration
                 )
-                binding.historyRecyclerView.adapter?.notifyItemChanged(0)
+                binding.historyRecyclerView.adapter?.notifyItemChanged(index)
                 
-                // 保存到 SharedPreferences
                 saveRecords()
+                updateMonthStats()
+                updateBarChart()
+                
+                updateUIForCheckOut(time, duration)
+                Toast.makeText(this, "辛苦了，休息一下吧！", Toast.LENGTH_SHORT).show()
             }
-            
-            updateUIForCheckOut(endTime, duration)
-            Toast.makeText(this, "辛苦了，休息一下吧！", Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
             e.printStackTrace()
-            Toast.makeText(this, "结束失败", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -143,7 +149,7 @@ class MainActivity : AppCompatActivity() {
             binding.checkInTimeText.text = formatTime(time)
             binding.checkOutTimeText.text = "--:--:--"
             binding.statusText.text = "工作中... 再次点击结束"
-            binding.durationText.text = "工作时长：00:00:00"
+            binding.durationText.text = "工作时长：0 小时 0 分钟"
             
             binding.checkButton.backgroundTintList = 
                 android.content.res.ColorStateList.valueOf(
@@ -158,7 +164,7 @@ class MainActivity : AppCompatActivity() {
         try {
             binding.checkOutTimeText.text = formatTime(time)
             binding.statusText.text = "今日打卡已完成"
-            binding.durationText.text = "工作时长：${formatDurationHourMinute(duration)}"
+            binding.durationText.text = "工作时长：${formatDuration(duration)}"
             
             binding.checkButton.backgroundTintList = 
                 android.content.res.ColorStateList.valueOf(
@@ -172,7 +178,7 @@ class MainActivity : AppCompatActivity() {
     private fun updateTimer() {
         try {
             val elapsed = System.currentTimeMillis() - startTime
-            binding.durationText.text = "工作时长：${formatDurationHourMinute(elapsed)}"
+            binding.durationText.text = "工作时长：${formatDuration(elapsed)}"
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -200,21 +206,119 @@ class MainActivity : AppCompatActivity() {
                 records.clear()
                 records.addAll(savedRecords)
                 binding.historyRecyclerView.adapter?.notifyDataSetChanged()
+                
+                // 恢复工作状态
+                val today = getCurrentDate()
+                val todayRecord = records.find { it.date == today && it.checkOutTime == null }
+                if (todayRecord != null) {
+                    isWorking = true
+                    startTime = todayRecord.checkInTime
+                    updateUIForCheckIn(startTime)
+                    handler.post(timerRunnable)
+                } else {
+                    resetUI()
+                }
             } else {
-                // 加载示例数据
-                loadSampleRecords()
+                resetUI()
             }
         } catch (e: Exception) {
             e.printStackTrace()
-            loadSampleRecords()
+            resetUI()
         }
     }
 
-    private fun loadSampleRecords() {
+    private fun updateMonthStats() {
         try {
-            records.add(WorkRecord("2026-03-10", System.currentTimeMillis() - 86400000, System.currentTimeMillis() - 3600000, 28800000))
-            records.add(WorkRecord("2026-03-09", System.currentTimeMillis() - 172800000, System.currentTimeMillis() - 122400000, 32400000))
-            binding.historyRecyclerView.adapter?.notifyDataSetChanged()
+            val calendar = Calendar.getInstance()
+            val year = calendar.get(Calendar.YEAR)
+            val month = calendar.get(Calendar.MONTH)
+            
+            calendar.set(Calendar.DAY_OF_MONTH, 1)
+            val monthStart = calendar.timeInMillis
+            calendar.set(Calendar.DAY_OF_MONTH, calendar.getActualMaximum(Calendar.DAY_OF_MONTH))
+            val monthEnd = calendar.timeInMillis
+            
+            val monthRecords = records.filter { record ->
+                val recordTime = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).parse(record.date)?.time ?: 0
+                recordTime in monthStart..monthEnd && record.checkOutTime != null
+            }
+            
+            val totalDays = monthRecords.size
+            val totalHours = monthRecords.sumOf { it.duration } / (1000 * 60 * 60)
+            
+            binding.monthStatsText.text = "本月已工作 $totalDays 天，总计 $totalHours 小时"
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun setupBarChart() {
+        try {
+            val chart = binding.barChart
+            chart.description.isEnabled = false
+            chart.setDrawGridBackground(false)
+            
+            val xAxis = chart.xAxis
+            xAxis.position = XAxis.XAxisPosition.BOTTOM
+            xAxis.setDrawGridLines(false)
+            
+            chart.axisLeft.setDrawGridLines(true)
+            chart.axisRight.isEnabled = false
+            
+            chart.legend.isEnabled = false
+            
+            updateBarChart()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun updateBarChart() {
+        try {
+            val chart = binding.barChart
+            val calendar = Calendar.getInstance()
+            
+            // 获取最近 7 天的数据
+            val entries = mutableListOf<BarEntry>()
+            val labels = mutableListOf<String>()
+            
+            for (i in 6 downTo 0) {
+                calendar.add(Calendar.DAY_OF_YEAR, -i)
+                val dateStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(calendar.time)
+                val dayLabel = SimpleDateFormat("MM/dd", Locale.getDefault()).format(calendar.time)
+                
+                val dayRecord = records.find { it.date == dateStr && it.checkOutTime != null }
+                val hours = if (dayRecord != null) {
+                    dayRecord.duration.toFloat() / (1000 * 60 * 60)
+                } else {
+                    0f
+                }
+                
+                entries.add(BarEntry(i.toFloat(), hours))
+                labels.add(dayLabel)
+            }
+            
+            val dataSet = BarDataSet(entries, "工时")
+            dataSet.color = Color.parseColor("#2196F3")
+            dataSet.valueTextColor = Color.parseColor("#666666")
+            dataSet.valueTextSize = 10f
+            
+            val barData = BarData(dataSet)
+            chart.data = barData
+            
+            chart.xAxis.valueFormatter = object : com.github.mikephil.charting.formatter.IndexAxisValueFormatter(labels) {}
+            chart.xAxis.labelCount = 7
+            
+            chart.invalidate()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun setupRecyclerView() {
+        try {
+            binding.historyRecyclerView.layoutManager = LinearLayoutManager(this)
+            binding.historyRecyclerView.adapter = HistoryAdapter(records)
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -225,7 +329,7 @@ class MainActivity : AppCompatActivity() {
             binding.checkInTimeText.text = "--:--:--"
             binding.checkOutTimeText.text = "--:--:--"
             binding.statusText.text = "点击打卡开始工作"
-            binding.durationText.text = "工作时长：00:00:00"
+            binding.durationText.text = "工作时长：0 小时 0 分钟"
             binding.checkButton.backgroundTintList = 
                 android.content.res.ColorStateList.valueOf(
                     getColor(R.color.check_button_start)
@@ -237,20 +341,21 @@ class MainActivity : AppCompatActivity() {
 
     private fun formatTime(timestamp: Long): String {
         return try {
-            val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
+            val sdf = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
             sdf.format(Date(timestamp))
         } catch (e: Exception) {
-            "--:--"
+            "--:--:--"
         }
     }
 
-    private fun formatDurationHourMinute(ms: Long): String {
+    private fun formatDuration(ms: Long): String {
         return try {
-            val hours = ms / (1000 * 60 * 60)
-            val minutes = (ms / (1000 * 60)) % 60
-            "${hours}小时${minutes}分钟"
+            val hours = TimeUnit.MILLISECONDS.toHours(ms)
+            val minutes = TimeUnit.MILLISECONDS.toMinutes(ms) % 60
+            val seconds = TimeUnit.MILLISECONDS.toSeconds(ms) % 60
+            "${hours}小时${minutes}分钟${seconds}秒"
         } catch (e: Exception) {
-            "0 小时 0 分钟"
+            "0 小时 0 分钟 0 秒"
         }
     }
 
@@ -266,7 +371,6 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         handler.removeCallbacks(timerRunnable)
-        // 确保数据保存
         if (isWorking) {
             saveRecords()
         }

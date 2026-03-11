@@ -9,9 +9,10 @@
     android:fillViewport="true"
     tools:context=".MainActivity">
 
-    <androidx.constraintlayout.widget.ConstraintLayout 
+    <LinearLayout 
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:orientation="vertical"
         android:paddingBottom="32dp">
 
         <!-- 标题 -->
@@ -23,10 +24,8 @@
             android:textSize="28sp"
             android:textStyle="bold"
             android:textColor="#333333"
-            android:layout_marginTop="48dp"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"/>
+            android:layout_marginTop="32dp"
+            android:layout_gravity="center_horizontal"/>
 
         <!-- 日期显示 -->
         <TextView
@@ -36,196 +35,228 @@
             android:textSize="16sp"
             android:textColor="#666666"
             android:layout_marginTop="8dp"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/titleText"/>
+            android:layout_gravity="center_horizontal"/>
 
-        <!-- 开始打卡时间卡片 -->
+        <!-- 打卡卡片 -->
         <androidx.cardview.widget.CardView
-            android:id="@+id/checkInCard"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="32dp"
-            android:layout_marginTop="32dp"
-            android:layout_marginEnd="32dp"
-            app:cardCornerRadius="12dp"
-            app:cardElevation="4dp"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/dateText">
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:padding="20dp"
-                android:gravity="center">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="开始打卡"
-                    android:textSize="14sp"
-                    android:textColor="#999999"/>
-
-                <TextView
-                    android:id="@+id/checkInTimeText"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="--:--:--"
-                    android:textSize="32sp"
-                    android:textStyle="bold"
-                    android:textColor="#4CAF50"
-                    android:layout_marginTop="8dp"/>
-
-            </LinearLayout>
-
-        </androidx.cardview.widget.CardView>
-
-        <!-- 圆形打卡按钮 -->
-        <FrameLayout
-            android:id="@+id/checkButtonContainer"
-            android:layout_width="180dp"
-            android:layout_height="180dp"
-            android:layout_marginTop="32dp"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/checkInCard">
-
-            <!-- 外圈光晕效果 -->
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:background="@drawable/circle_background_glow"
-                android:alpha="0.3"/>
-
-            <!-- 主按钮 -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:orientation="vertical"
-                android:gravity="center">
-                
-                <com.google.android.material.floatingactionbutton.FloatingActionButton
-                    android:id="@+id/checkButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:src="@drawable/ic_check"
-                    android:contentDescription="打卡"
-                    app:fabSize="normal"
-                    app:backgroundTint="@color/check_button_color"
-                    app:elevation="8dp"
-                    app:pressedTranslationZ="12dp"/>
-                
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="打卡"
-                    android:textSize="18sp"
-                    android:textStyle="bold"
-                    android:textColor="#333333"
-                    android:layout_marginTop="8dp"/>
-                
-            </LinearLayout>
-
-        </FrameLayout>
-
-        <!-- 按钮状态文字 -->
-        <TextView
-            android:id="@+id/statusText"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="点击打卡开始工作"
-            android:textSize="16sp"
-            android:textColor="#666666"
-            android:layout_marginTop="16dp"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/checkButtonContainer"/>
-
-        <!-- 结束打卡时间卡片 -->
-        <androidx.cardview.widget.CardView
-            android:id="@+id/checkOutCard"
-            android:layout_width="0dp"
+            android:id="@+id/checkCard"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginStart="32dp"
             android:layout_marginTop="24dp"
             android:layout_marginEnd="32dp"
             app:cardCornerRadius="12dp"
-            app:cardElevation="4dp"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/statusText">
+            app:cardElevation="4dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="20dp"
-                android:gravity="center">
+                android:padding="24dp">
 
+                <!-- 圆形打卡按钮 -->
+                <FrameLayout
+                    android:layout_width="160dp"
+                    android:layout_height="160dp"
+                    android:layout_gravity="center_horizontal">
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="@drawable/circle_background_glow"
+                        android:alpha="0.3"/>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:orientation="vertical"
+                        android:gravity="center">
+
+                        <com.google.android.material.floatingactionbutton.FloatingActionButton
+                            android:id="@+id/checkButton"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:src="@drawable/ic_check"
+                            android:contentDescription="打卡"
+                            app:fabSize="normal"
+                            app:backgroundTint="@color/check_button_color"
+                            app:elevation="8dp"
+                            app:pressedTranslationZ="12dp"/>
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="打卡"
+                            android:textSize="16sp"
+                            android:textStyle="bold"
+                            android:textColor="#333333"
+                            android:layout_marginTop="4dp"/>
+
+                    </LinearLayout>
+
+                </FrameLayout>
+
+                <!-- 状态文字 -->
                 <TextView
+                    android:id="@+id/statusText"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="结束打卡"
-                    android:textSize="14sp"
-                    android:textColor="#999999"/>
+                    android:text="点击打卡开始工作"
+                    android:textSize="16sp"
+                    android:textColor="#666666"
+                    android:layout_marginTop="16dp"
+                    android:layout_gravity="center_horizontal"/>
 
+                <!-- 时间显示 -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center"
+                    android:layout_marginTop="20dp">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:gravity="center">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="开始"
+                            android:textSize="12sp"
+                            android:textColor="#999999"/>
+
+                        <TextView
+                            android:id="@+id/checkInTimeText"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="--:--:--"
+                            android:textSize="24sp"
+                            android:textStyle="bold"
+                            android:textColor="#4CAF50"
+                            android:layout_marginTop="4dp"/>
+
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="1dp"
+                        android:layout_height="40dp"
+                        android:background="#E0E0E0"
+                        android:layout_marginStart="16dp"
+                        android:layout_marginEnd="16dp"/>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical"
+                        android:gravity="center">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="结束"
+                            android:textSize="12sp"
+                            android:textColor="#999999"/>
+
+                        <TextView
+                            android:id="@+id/checkOutTimeText"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="--:--:--"
+                            android:textSize="24sp"
+                            android:textStyle="bold"
+                            android:textColor="#FF5722"
+                            android:layout_marginTop="4dp"/>
+
+                    </LinearLayout>
+
+                </LinearLayout>
+
+                <!-- 工作时长 -->
                 <TextView
-                    android:id="@+id/checkOutTimeText"
+                    android:id="@+id/durationText"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="--:--:--"
-                    android:textSize="32sp"
+                    android:text="工作时长：0 小时 0 分钟"
+                    android:textSize="18sp"
                     android:textStyle="bold"
-                    android:textColor="#FF5722"
-                    android:layout_marginTop="8dp"/>
+                    android:textColor="#2196F3"
+                    android:layout_marginTop="16dp"
+                    android:layout_gravity="center_horizontal"/>
 
             </LinearLayout>
 
         </androidx.cardview.widget.CardView>
 
-        <!-- 工作时长显示 -->
-        <TextView
-            android:id="@+id/durationText"
-            android:layout_width="wrap_content"
+        <!-- 月度统计卡片 -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="工作时长：00:00:00"
-            android:textSize="18sp"
-            android:textStyle="bold"
-            android:textColor="#2196F3"
-            android:layout_marginTop="16dp"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/checkOutCard"/>
+            android:layout_marginStart="32dp"
+            android:layout_marginTop="24dp"
+            android:layout_marginEnd="32dp"
+            app:cardCornerRadius="12dp"
+            app:cardElevation="4dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="月度统计"
+                    android:textSize="18sp"
+                    android:textStyle="bold"
+                    android:textColor="#333333"/>
+
+                <TextView
+                    android:id="@+id/monthStatsText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="本月已工作 0 天，总计 0 小时"
+                    android:textSize="14sp"
+                    android:textColor="#666666"
+                    android:layout_marginTop="8dp"/>
+
+                <!-- 柱状图 -->
+                <com.github.mikephil.charting.charts.BarChart
+                    android:id="@+id/barChart"
+                    android:layout_width="match_parent"
+                    android:layout_height="200dp"
+                    android:layout_marginTop="16dp"/>
+
+            </LinearLayout>
+
+        </androidx.cardview.widget.CardView>
 
         <!-- 历史记录标题 -->
         <TextView
-            android:id="@+id/historyTitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="历史记录"
             android:textSize="20sp"
             android:textStyle="bold"
             android:textColor="#333333"
-            android:layout_marginTop="40dp"
-            android:layout_marginStart="16dp"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/durationText"/>
+            android:layout_marginTop="24dp"
+            android:layout_marginStart="32dp"/>
 
         <!-- 历史记录列表 -->
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/historyRecyclerView"
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:layout_marginBottom="16dp"
-            android:nestedScrollingEnabled="false"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/historyTitle"/>
+            android:layout_marginStart="32dp"
+            android:layout_marginEnd="32dp"
+            android:nestedScrollingEnabled="false"/>
 
-    </androidx.constraintlayout.widget.ConstraintLayout>
+    </LinearLayout>
 
 </ScrollView>

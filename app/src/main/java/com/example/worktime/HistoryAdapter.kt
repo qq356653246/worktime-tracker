@@ -6,6 +6,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.worktime.databinding.ItemHistoryBinding
 import java.text.SimpleDateFormat
 import java.util.*
+import java.util.concurrent.TimeUnit
 
 class HistoryAdapter(private val records: List<WorkRecord>) : RecyclerView.Adapter<HistoryAdapter.ViewHolder>() {
 
@@ -14,14 +15,16 @@ class HistoryAdapter(private val records: List<WorkRecord>) : RecyclerView.Adapt
             binding.dateText.text = record.date
             
             val checkInStr = formatTime(record.checkInTime)
-            val checkOutStr = record.checkOutTime?.let { formatTime(it) } ?: "--:--"
+            val checkOutStr = record.checkOutTime?.let { formatTime(it) } ?: "--:--:--"
             binding.timeText.text = "$checkInStr - $checkOutStr"
             
-            binding.durationText.text = formatDuration(record.duration)
+            binding.durationText.text = if (record.checkOutTime != null) {
+                formatDuration(record.duration)
+            } else {
+                "进行中"
+            }
             
-            // 如果记录未完成，显示不同样式
             if (record.checkOutTime == null) {
-                binding.durationText.text = "进行中"
                 binding.durationText.setTextColor(
                     binding.root.context.getColor(R.color.check_button_end)
                 )
@@ -33,14 +36,14 @@ class HistoryAdapter(private val records: List<WorkRecord>) : RecyclerView.Adapt
         }
         
         private fun formatTime(timestamp: Long): String {
-            val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
+            val sdf = SimpleDateFormat("HH:mm:ss", Locale.getDefault())
             return sdf.format(Date(timestamp))
         }
         
         private fun formatDuration(ms: Long): String {
-            val hours = ms / (1000 * 60 * 60)
-            val minutes = (ms / (1000 * 60)) % 60
-            return "${hours}小时${minutes}分钟"
+            val hours = TimeUnit.MILLISECONDS.toHours(ms)
+            val minutes = TimeUnit.MILLISECONDS.toMinutes(ms) % 60
+            "${hours}小时${minutes}分钟"
         }
     }
 

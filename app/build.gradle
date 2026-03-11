@@ -11,8 +11,8 @@ android {
         applicationId "com.example.worktime"
         minSdk 24
         targetSdk 34
-        versionCode 5
-        versionName "5.0"
+        versionCode 6
+        versionName "6.0"
     }
 
     buildTypes {
@@ -45,4 +45,7 @@ dependencies {
     
     // Gson for JSON serialization
     implementation 'com.google.code.gson:gson:2.10.1'
+    
+    // MPAndroidChart for charts
+    implementation 'com.github.PhilJay:MPAndroidChart:v3.1.0'
 }
