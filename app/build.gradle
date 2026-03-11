@@ -11,8 +11,10 @@ android {
         applicationId "com.example.worktime"
         minSdk 24
         targetSdk 34
-        versionCode 6
-        versionName "6.0"
+        versionCode 7
+        versionName "7.0"
+        
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
@@ -34,6 +36,10 @@ android {
     buildFeatures {
         viewBinding true
     }
+    
+    testOptions {
+        unitTests.returnDefaultValues = true
+    }
 }
 
 dependencies {
@@ -45,4 +51,8 @@ dependencies {
     
     // Gson for JSON serialization
     implementation 'com.google.code.gson:gson:2.10.1'
+    
+    // Test dependencies
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.jetbrains.kotlin:kotlin-test:1.9.0'
 }

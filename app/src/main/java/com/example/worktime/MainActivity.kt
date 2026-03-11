@@ -20,6 +20,7 @@ class MainActivity : AppCompatActivity() {
     
     private var isWorking = false
     private var startTime: Long = 0
+    private var currentRecordIndex: Int = -1
     
     private val handler = Handler(Looper.getMainLooper())
     private val records = mutableListOf<WorkRecord>()
@@ -69,20 +70,17 @@ class MainActivity : AppCompatActivity() {
     private fun handleCheckClick() {
         val now = System.currentTimeMillis()
         val today = getCurrentDate()
+        
+        // 查找今天的记录索引
         val todayIndex = records.indexOfFirst { it.date == today }
+        currentRecordIndex = todayIndex
         
         if (todayIndex == -1) {
-            // 今天还没有打卡记录 - 开始打卡
+            // 情况 1: 今天还没有打卡记录 - 开始打卡
             checkIn(today, now)
         } else {
-            val todayRecord = records[todayIndex]
-            if (todayRecord.checkOutTime == null) {
-                // 已有开始时间，没有结束时间 - 结束打卡
-                checkOut(todayIndex, now)
-            } else {
-                // 今天已完成打卡 - 更新结束时间为最新时间
-                checkOut(todayIndex, now)
-            }
+            // 情况 2/3/4: 今天已有记录 - 更新结束时间
+            checkOut(todayIndex, now)
         }
     }
 
@@ -98,42 +96,52 @@ class MainActivity : AppCompatActivity() {
                 duration = 0
             )
             records.add(0, record)
-            binding.historyRecyclerView.adapter?.notifyItemInserted(0)
+            currentRecordIndex = 0
             
             saveRecords()
             
             updateUIForCheckIn(time)
             handler.post(timerRunnable)
+            
+            binding.historyRecyclerView.adapter?.notifyItemInserted(0)
             Toast.makeText(this, "开始工作，加油！", Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
             e.printStackTrace()
+            Toast.makeText(this, "打卡失败：${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
     private fun checkOut(index: Int, time: Long) {
         try {
+            if (index < 0 || index >= records.size) {
+                Toast.makeText(this, "记录不存在", Toast.LENGTH_SHORT).show()
+                return
+            }
+            
             val oldRecord = records[index]
             val duration = time - oldRecord.checkInTime
             
             isWorking = false
             handler.removeCallbacks(timerRunnable)
             
-            // 更新记录 - 无论是否已有结束时间，都更新为最新时间
+            // 更新记录 - 总是使用最新的结束时间
             records[index] = WorkRecord(
                 date = oldRecord.date,
                 checkInTime = oldRecord.checkInTime,
-                checkOutTime = time,  // 总是使用最新的结束时间
+                checkOutTime = time,
                 duration = duration
             )
-            binding.historyRecyclerView.adapter?.notifyItemChanged(index)
             
             saveRecords()
             updateMonthStats()
+            
+            binding.historyRecyclerView.adapter?.notifyItemChanged(index)
             
             updateUIForCheckOut(time, duration)
             Toast.makeText(this, "打卡成功！", Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
             e.printStackTrace()
+            Toast.makeText(this, "打卡失败：${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -201,20 +209,24 @@ class MainActivity : AppCompatActivity() {
                 binding.historyRecyclerView.adapter?.notifyDataSetChanged()
                 
                 val today = getCurrentDate()
-                val todayRecord = records.find { it.date == today && it.checkOutTime == null }
-                if (todayRecord != null) {
-                    isWorking = true
-                    startTime = todayRecord.checkInTime
-                    updateUIForCheckIn(startTime)
-                    handler.post(timerRunnable)
-                } else {
-                    // 检查今天是否有已完成的记录
-                    val todayCompleted = records.find { it.date == today && it.checkOutTime != null }
-                    if (todayCompleted != null) {
-                        updateUIForCheckOut(todayCompleted.checkOutTime!!, todayCompleted.duration)
+                val todayIndex = records.indexOfFirst { it.date == today }
+                
+                if (todayIndex >= 0) {
+                    val todayRecord = records[todayIndex]
+                    currentRecordIndex = todayIndex
+                    
+                    if (todayRecord.checkOutTime == null) {
+                        // 工作中状态
+                        isWorking = true
+                        startTime = todayRecord.checkInTime
+                        updateUIForCheckIn(startTime)
+                        handler.post(timerRunnable)
                     } else {
-                        resetUI()
+                        // 已完成状态
+                        updateUIForCheckOut(todayRecord.checkOutTime!!, todayRecord.duration)
                     }
+                } else {
+                    resetUI()
                 }
             } else {
                 resetUI()
