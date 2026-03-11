@@ -1,5 +1,7 @@
 package com.example.worktime
 
+import android.content.Context
+import android.content.SharedPreferences
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -7,12 +9,16 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.worktime.databinding.ActivityMainBinding
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import java.text.SimpleDateFormat
 import java.util.*
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
+    private lateinit var prefs: SharedPreferences
+    
     private var isWorking = false
     private var startTime: Long = 0
     
@@ -35,9 +41,12 @@ class MainActivity : AppCompatActivity() {
             binding = ActivityMainBinding.inflate(layoutInflater)
             setContentView(binding.root)
             
+            // 初始化 SharedPreferences
+            prefs = getSharedPreferences("worktime_data", Context.MODE_PRIVATE)
+            
             setupUI()
             setupRecyclerView()
-            loadSampleRecords()
+            loadSavedRecords()
         } catch (e: Exception) {
             e.printStackTrace()
             Toast.makeText(this, "初始化失败：${e.message}", Toast.LENGTH_LONG).show()
@@ -86,6 +95,9 @@ class MainActivity : AppCompatActivity() {
             records.add(0, record)
             binding.historyRecyclerView.adapter?.notifyItemInserted(0)
             
+            // 保存到 SharedPreferences
+            saveRecords()
+            
             updateUIForCheckIn(startTime)
             handler.post(timerRunnable)
             Toast.makeText(this, "开始工作，加油！", Toast.LENGTH_SHORT).show()
@@ -113,6 +125,9 @@ class MainActivity : AppCompatActivity() {
                     duration = duration
                 )
                 binding.historyRecyclerView.adapter?.notifyItemChanged(0)
+                
+                // 保存到 SharedPreferences
+                saveRecords()
             }
             
             updateUIForCheckOut(endTime, duration)
@@ -160,6 +175,38 @@ class MainActivity : AppCompatActivity() {
             binding.durationText.text = "工作时长：${formatDurationHourMinute(elapsed)}"
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+    }
+
+    private fun saveRecords() {
+        try {
+            val editor = prefs.edit()
+            val gson = Gson()
+            val json = gson.toJson(records)
+            editor.putString("records", json)
+            editor.apply()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun loadSavedRecords() {
+        try {
+            val json = prefs.getString("records", null)
+            if (json != null) {
+                val gson = Gson()
+                val type = object : TypeToken<MutableList<WorkRecord>>() {}.type
+                val savedRecords: MutableList<WorkRecord> = gson.fromJson(json, type)
+                records.clear()
+                records.addAll(savedRecords)
+                binding.historyRecyclerView.adapter?.notifyDataSetChanged()
+            } else {
+                // 加载示例数据
+                loadSampleRecords()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            loadSampleRecords()
         }
     }
 
@@ -219,5 +266,9 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         handler.removeCallbacks(timerRunnable)
+        // 确保数据保存
+        if (isWorking) {
+            saveRecords()
+        }
     }
 }
