@@ -7,8 +7,8 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.worktime.databinding.ActivityMainBinding
-import com.google.code.gson.Gson
-import com.google.code.gson.reflect.TypeToken
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit

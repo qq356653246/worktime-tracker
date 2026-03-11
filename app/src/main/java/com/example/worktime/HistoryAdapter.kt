@@ -43,7 +43,7 @@ class HistoryAdapter(private val records: List<WorkRecord>) : RecyclerView.Adapt
         private fun formatDuration(ms: Long): String {
             val hours = TimeUnit.MILLISECONDS.toHours(ms)
             val minutes = TimeUnit.MILLISECONDS.toMinutes(ms) % 60
-            "${hours}小时${minutes}分钟"
+            return "${hours}小时${minutes}分钟"
         }
     }
 
