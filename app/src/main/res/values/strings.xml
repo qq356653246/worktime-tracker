@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">工时记录</string>
+    <string name="start_work">开始工作</string>
+    <string name="end_work">结束工作</string>
+    <string name="working_time">工作时长</string>
+    <string name="today_records">今日记录</string>
+    <string name="no_records">暂无记录</string>
+    <string name="total_hours">总工时</string>
+    <string name="date">日期</string>
+    <string name="duration">时长</string>
+</resources>
