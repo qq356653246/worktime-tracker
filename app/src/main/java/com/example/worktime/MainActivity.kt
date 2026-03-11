@@ -1,20 +1,14 @@
 package com.example.worktime
 
-import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.worktime.databinding.ActivityMainBinding
-import com.google.android.material.color.MaterialColors
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.*
+import java.util.concurrent.Executors
 
 class MainActivity : AppCompatActivity() {
 
@@ -28,6 +22,7 @@ class MainActivity : AppCompatActivity() {
     
     private val handler = Handler(Looper.getMainLooper())
     private val records = mutableListOf<AttendanceRecord>()
+    private val executor = Executors.newSingleThreadExecutor()
     
     private val timerRunnable = object : Runnable {
         override fun run() {
@@ -50,7 +45,7 @@ class MainActivity : AppCompatActivity() {
         setupUI()
         setupRecyclerView()
         loadTodayRecord()
-        observeAllRecords()
+        loadAllRecords()
     }
 
     private fun setupUI() {
@@ -74,51 +69,48 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun checkIn() {
-        lifecycleScope.launch {
-            startTime = System.currentTimeMillis()
-            val date = getCurrentDate()
-            
-            // 创建新记录
-            val record = AttendanceRecord(
-                date = date,
-                checkInTime = startTime,
-                checkOutTime = null,
-                duration = 0
-            )
-            
-            currentRecordId = withContext(Dispatchers.IO) {
-                dao.insertRecord(record)
-            }
-            
-            isWorking = true
-            updateUIForCheckIn(startTime)
-            handler.post(timerRunnable)
+        startTime = System.currentTimeMillis()
+        val date = getCurrentDate()
+        
+        // 创建新记录
+        val record = AttendanceRecord(
+            date = date,
+            checkInTime = startTime,
+            checkOutTime = null,
+            duration = 0
+        )
+        
+        executor.execute {
+            currentRecordId = dao.insertRecord(record)
         }
+        
+        isWorking = true
+        updateUIForCheckIn(startTime)
+        handler.post(timerRunnable)
     }
 
     private fun checkOut() {
-        lifecycleScope.launch {
-            val endTime = System.currentTimeMillis()
-            val duration = endTime - startTime
-            
-            isWorking = false
-            handler.removeCallbacks(timerRunnable)
-            
-            // 更新记录
-            withContext(Dispatchers.IO) {
-                dao.updateRecord(
-                    AttendanceRecord(
-                        id = currentRecordId,
-                        date = getCurrentDate(),
-                        checkInTime = startTime,
-                        checkOutTime = endTime,
-                        duration = duration
-                    )
+        val endTime = System.currentTimeMillis()
+        val duration = endTime - startTime
+        
+        isWorking = false
+        handler.removeCallbacks(timerRunnable)
+        
+        // 更新记录
+        executor.execute {
+            dao.updateRecord(
+                AttendanceRecord(
+                    id = currentRecordId,
+                    date = getCurrentDate(),
+                    checkInTime = startTime,
+                    checkOutTime = endTime,
+                    duration = duration
                 )
-            }
-            
-            updateUIForCheckOut(endTime, duration)
+            )
+            loadAllRecords()
         }
+        
+        updateUIForCheckOut(endTime, duration)
     }
 
     private fun updateUIForCheckIn(time: Long) {
@@ -154,31 +146,32 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun loadTodayRecord() {
-        lifecycleScope.launch {
+        executor.execute {
             val today = getCurrentDate()
-            val unfinishedRecord = withContext(Dispatchers.IO) {
-                dao.getUnfinishedRecord(today)
-            }
+            val unfinishedRecord = dao.getUnfinishedRecord(today)
             
-            if (unfinishedRecord != null) {
-                // 恢复未完成记录
-                currentRecordId = unfinishedRecord.id
-                startTime = unfinishedRecord.checkInTime
-                isWorking = true
-                updateUIForCheckIn(startTime)
-                handler.post(timerRunnable)
-            } else {
-                // 没有未完成记录
-                resetUI()
+            runOnUiThread {
+                if (unfinishedRecord != null) {
+                    // 恢复未完成记录
+                    currentRecordId = unfinishedRecord.id
+                    startTime = unfinishedRecord.checkInTime
+                    isWorking = true
+                    updateUIForCheckIn(startTime)
+                    handler.post(timerRunnable)
+                } else {
+                    // 没有未完成记录
+                    resetUI()
+                }
             }
         }
     }
 
-    private fun observeAllRecords() {
-        lifecycleScope.launch {
-            dao.getAllRecords().collectLatest { list ->
+    private fun loadAllRecords() {
+        executor.execute {
+            val allRecords = dao.allRecords
+            runOnUiThread {
                 records.clear()
-                records.addAll(list)
+                records.addAll(allRecords)
                 binding.historyRecyclerView.adapter?.notifyDataSetChanged()
             }
         }
