@@ -327,6 +327,14 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateUIForCheckOut(time: Long, netDuration: Long, breakDuration: Long) {
         try {
+            // 获取当前记录的开始时间并显示
+            val checkInTime = if (currentRecordIndex >= 0 && currentRecordIndex < records.size) {
+                records[currentRecordIndex].checkInTime
+            } else {
+                startTime
+            }
+            
+            binding.checkInTimeText.text = formatTime(checkInTime)
             binding.checkOutTimeText.text = formatTime(time)
             binding.statusText.text = "今日打卡已完成"
             binding.durationText.text = "净工作时长：${formatDuration(netDuration)}"
