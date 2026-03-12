@@ -16,11 +16,6 @@ import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
 
-data class BreakTime(
-    val startTime: String,  // HH:mm
-    val endTime: String     // HH:mm
-)
-
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
