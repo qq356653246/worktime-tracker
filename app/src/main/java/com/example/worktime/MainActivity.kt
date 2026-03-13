@@ -513,31 +513,67 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * 创建桌面快捷方式
+     * 创建桌面快捷方式 (兼容 Android 13+)
      */
     private fun createDesktopShortcut() {
         try {
-            val shortcutIntent = android.content.Intent(this, ShortcutActivity::class.java)
-            shortcutIntent.action = android.content.Intent.ACTION_MAIN
-            
-            val addIntent = android.content.Intent()
-            addIntent.putExtra(android.content.Intent.EXTRA_SHORTCUT_INTENT, shortcutIntent)
-            addIntent.putExtra(android.content.Intent.EXTRA_SHORTCUT_NAME, "一键打卡")
-            addIntent.putExtra(
-                android.content.Intent.EXTRA_SHORTCUT_ICON,
-                android.graphics.BitmapFactory.decodeResource(
-                    resources,
-                    android.R.drawable.ic_menu_my_calendar
-                )
-            )
-            addIntent.action = "com.android.launcher.action.INSTALL_SHORTCUT"
-            
-            sendBroadcast(addIntent)
-            Toast.makeText(this, "✅ 快捷方式已创建到桌面", Toast.LENGTH_SHORT).show()
+            // 检查系统是否支持快捷方式 API
+            val shortcutManager = getSystemService(android.content.pm.ShortcutManager::class.java)
+            if (shortcutManager != null && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N_MR1) {
+                // 使用现代 ShortcutManager API (Android 7.1+)
+                createModernShortcut(shortcutManager)
+            } else {
+                // 使用传统广播方式 (旧版本 Android)
+                createLegacyShortcut()
+            }
         } catch (e: Exception) {
             e.printStackTrace()
             Toast.makeText(this, "创建失败：${e.message}", Toast.LENGTH_SHORT).show()
         }
+    }
+
+    private fun createModernShortcut(shortcutManager: android.content.pm.ShortcutManager) {
+        if (shortcutManager.isRequestPinShortcutSupported) {
+            val shortcutIntent = android.content.Intent(this, ShortcutActivity::class.java)
+            shortcutIntent.action = android.content.Intent.ACTION_MAIN
+            
+            val icon = android.graphics.BitmapFactory.decodeResource(
+                resources,
+                android.R.drawable.ic_menu_my_calendar
+            )
+            
+            val shortcut = android.content.pm.ShortcutInfo.Builder(this, "worktime-shortcut")
+                .setShortLabel("一键打卡")
+                .setLongLabel("快速打卡")
+                .setIcon(android.graphics.drawable.Icon.createWithBitmap(icon))
+                .setIntent(shortcutIntent)
+                .build()
+            
+            shortcutManager.requestPinShortcut(shortcut, null)
+            Toast.makeText(this, "✅ 请手动将快捷方式添加到桌面", Toast.LENGTH_LONG).show()
+        } else {
+            Toast.makeText(this, "❌ 您的启动器不支持快捷方式", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun createLegacyShortcut() {
+        val shortcutIntent = android.content.Intent(this, ShortcutActivity::class.java)
+        shortcutIntent.action = android.content.Intent.ACTION_MAIN
+        
+        val addIntent = android.content.Intent()
+        addIntent.putExtra(android.content.Intent.EXTRA_SHORTCUT_INTENT, shortcutIntent)
+        addIntent.putExtra(android.content.Intent.EXTRA_SHORTCUT_NAME, "一键打卡")
+        addIntent.putExtra(
+            android.content.Intent.EXTRA_SHORTCUT_ICON,
+            android.graphics.BitmapFactory.decodeResource(
+                resources,
+                android.R.drawable.ic_menu_my_calendar
+            )
+        )
+        addIntent.action = "com.android.launcher.action.INSTALL_SHORTCUT"
+        
+        sendBroadcast(addIntent)
+        Toast.makeText(this, "✅ 快捷方式已创建到桌面", Toast.LENGTH_SHORT).show()
     }
 
     override fun onDestroy() {
