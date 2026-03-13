@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout 
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@drawable/widget_background">
+
+    <!-- 标题 -->
+    <TextView
+        android:id="@+id/widgetTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="工时打卡"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="#333333"/>
+
+    <!-- 日期 -->
+    <TextView
+        android:id="@+id/widgetDate"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="12sp"
+        android:textColor="#666666"
+        android:layout_marginTop="4dp"/>
+
+    <!-- 打卡按钮 -->
+    <Button
+        android:id="@+id/widgetCheckButton"
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:text="打卡"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="#FFFFFF"
+        android:background="@drawable/widget_button_bg"
+        android:layout_marginTop="12dp"/>
+
+    <!-- 状态 -->
+    <TextView
+        android:id="@+id/widgetStatus"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="点击打卡"
+        android:textSize="12sp"
+        android:textColor="#666666"
+        android:layout_marginTop="8dp"/>
+
+    <!-- 时长 -->
+    <TextView
+        android:id="@+id/widgetDuration"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textSize="11sp"
+        android:textColor="#2196F3"
+        android:layout_marginTop="4dp"
+        android:visibility="gone"/>
+
+</LinearLayout>

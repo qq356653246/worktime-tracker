@@ -38,6 +38,19 @@
             </intent-filter>
         </activity>
         
+        <!-- 桌面打卡组件 -->
+        <receiver
+            android:name=".WorkTimeWidget"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.example.worktime.ACTION_CHECK" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_info" />
+        </receiver>
+        
     </application>
 
 </manifest>
