@@ -189,8 +189,8 @@ class WorkTimeWidget : AppWidgetProvider() {
                 views.setTextViewText(R.id.widgetDate, sdfDate.format(Date()))
                 
                 // 获取今日状态
-                val today = getCurrentDate()
-                val records = loadRecords(prefs)
+                val today = getTodayDate()
+                val records = getRecords(prefs)
                 val todayIndex = records.indexOfFirst { it.date == today }
                 
                 if (todayIndex == -1) {
@@ -240,7 +240,7 @@ class WorkTimeWidget : AppWidgetProvider() {
             }
         }
 
-        private fun loadRecords(prefs: SharedPreferences): MutableList<WorkRecord> {
+        private fun getRecords(prefs: SharedPreferences): MutableList<WorkRecord> {
             val json = prefs.getString("records", null)
             if (json != null) {
                 val gson = com.google.gson.Gson()
@@ -250,7 +250,7 @@ class WorkTimeWidget : AppWidgetProvider() {
             return mutableListOf()
         }
 
-        private fun getCurrentDate(): String {
+        private fun getTodayDate(): String {
             val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
             return sdf.format(Date())
         }
