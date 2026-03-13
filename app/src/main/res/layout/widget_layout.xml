@@ -58,4 +58,15 @@
         android:layout_marginTop="4dp"
         android:visibility="gone"/>
 
+    <!-- 打开 App 按钮 -->
+    <Button
+        android:id="@+id/widgetOpenAppButton"
+        android:layout_width="match_parent"
+        android:layout_height="36dp"
+        android:text="打开 App"
+        android:textSize="12sp"
+        android:textColor="#666666"
+        android:background="@drawable/widget_open_app_bg"
+        android:layout_marginTop="8dp"/>
+
 </LinearLayout>

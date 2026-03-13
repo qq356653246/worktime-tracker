@@ -28,8 +28,21 @@ class WorkTimeWidget : AppWidgetProvider() {
     override fun onReceive(context: Context, intent: Intent) {
         super.onReceive(context, intent)
         
-        if (intent.action == ACTION_CHECK) {
-            performCheck(context)
+        when (intent.action) {
+            ACTION_CHECK -> performCheck(context)
+            ACTION_OPEN_APP -> openApp(context)
+        }
+    }
+
+    private fun openApp(context: Context) {
+        try {
+            val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+            intent?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            if (intent != null) {
+                context.startActivity(intent)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
@@ -177,6 +190,7 @@ class WorkTimeWidget : AppWidgetProvider() {
 
     companion object {
         const val ACTION_CHECK = "com.example.worktime.ACTION_CHECK"
+        const val ACTION_OPEN_APP = "com.example.worktime.ACTION_OPEN_APP"
 
         fun updateAppWidget(
             context: Context,
@@ -226,7 +240,7 @@ class WorkTimeWidget : AppWidgetProvider() {
                     }
                 }
                 
-                // 设置按钮点击事件
+                // 设置打卡按钮点击事件
                 val checkIntent = Intent(context, WorkTimeWidget::class.java)
                 checkIntent.action = ACTION_CHECK
                 val checkPendingIntent = PendingIntent.getBroadcast(
@@ -236,6 +250,17 @@ class WorkTimeWidget : AppWidgetProvider() {
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )
                 views.setOnClickPendingIntent(R.id.widgetCheckButton, checkPendingIntent)
+                
+                // 设置打开 App 按钮点击事件
+                val openAppIntent = Intent(context, WorkTimeWidget::class.java)
+                openAppIntent.action = ACTION_OPEN_APP
+                val openAppPendingIntent = PendingIntent.getBroadcast(
+                    context,
+                    1,
+                    openAppIntent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                views.setOnClickPendingIntent(R.id.widgetOpenAppButton, openAppPendingIntent)
                 
                 appWidgetManager.updateAppWidget(appWidgetId, views)
             } catch (e: Exception) {

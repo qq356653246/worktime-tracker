@@ -8,23 +8,65 @@ import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
 
+/**
+ * 历史记录 Adapter - 按天统计
+ */
 class HistoryAdapter(private val records: List<WorkRecord>) : RecyclerView.Adapter<HistoryAdapter.ViewHolder>() {
 
+    /**
+     * 按日期分组统计记录
+     */
+    data class DaySummary(
+        val date: String,
+        val checkInTime: Long,
+        val checkOutTime: Long?,
+        val totalDuration: Long,
+        val checkCount: Int
+    )
+
+    private val daySummaries: List<DaySummary> by lazy {
+        // 按日期分组
+        val grouped = records.groupBy { it.date }
+        
+        // 计算每天的汇总
+        grouped.map { (date, dayRecords) ->
+            val completedRecords = dayRecords.filter { it.checkOutTime != null }
+            val inProgressRecord = dayRecords.find { it.checkOutTime == null }
+            
+            val firstCheckIn = dayRecords.minOfOrNull { it.checkInTime } ?: 0L
+            val lastCheckOut = completedRecords.maxOfOrNull { it.checkOutTime!! }
+            val totalDuration = completedRecords.sumOf { it.duration }
+            
+            DaySummary(
+                date = date,
+                checkInTime = firstCheckIn,
+                checkOutTime = lastCheckOut ?: inProgressRecord?.checkInTime,
+                totalDuration = totalDuration,
+                checkCount = dayRecords.size
+            )
+        }.sortedByDescending { it.date }
+    }
+
     inner class ViewHolder(private val binding: ItemHistoryBinding) : RecyclerView.ViewHolder(binding.root) {
-        fun bind(record: WorkRecord) {
-            binding.dateText.text = record.date
+        fun bind(summary: DaySummary) {
+            binding.dateText.text = "${summary.date} (${formatWeekday(summary.date)})"
             
-            val checkInStr = formatTime(record.checkInTime)
-            val checkOutStr = record.checkOutTime?.let { formatTime(it) } ?: "--:--:--"
-            binding.timeText.text = "$checkInStr - $checkOutStr"
+            val checkInStr = formatTime(summary.checkInTime)
+            val checkOutStr = summary.checkOutTime?.let { formatTime(it) } ?: "--:--:--"
             
-            binding.durationText.text = if (record.checkOutTime != null) {
-                formatDuration(record.duration)
+            if (summary.checkCount > 1) {
+                binding.timeText.text = "$checkInStr ~ $checkOutStr (${summary.checkCount}次打卡)"
+            } else {
+                binding.timeText.text = "$checkInStr - $checkOutStr"
+            }
+            
+            binding.durationText.text = if (summary.checkOutTime != null) {
+                formatDuration(summary.totalDuration)
             } else {
                 "进行中"
             }
             
-            if (record.checkOutTime == null) {
+            if (summary.checkOutTime == null) {
                 binding.durationText.setTextColor(
                     binding.root.context.getColor(R.color.check_button_end)
                 )
@@ -45,6 +87,17 @@ class HistoryAdapter(private val records: List<WorkRecord>) : RecyclerView.Adapt
             val minutes = TimeUnit.MILLISECONDS.toMinutes(ms) % 60
             return "${hours}小时${minutes}分钟"
         }
+        
+        private fun formatWeekday(dateStr: String): String {
+            return try {
+                val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                val date = sdf.parse(dateStr)
+                val weekSdf = SimpleDateFormat("EEE", Locale.CHINA)
+                weekSdf.format(date!!)
+            } catch (e: Exception) {
+                ""
+            }
+        }
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -55,8 +108,8 @@ class HistoryAdapter(private val records: List<WorkRecord>) : RecyclerView.Adapt
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        holder.bind(records[position])
+        holder.bind(daySummaries[position])
     }
 
-    override fun getItemCount() = records.size
+    override fun getItemCount() = daySummaries.size
 }

@@ -103,14 +103,66 @@ class MainActivity : AppCompatActivity() {
                 override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
                     if (intent?.action == "com.example.worktime.REFRESH_WIDGET") {
                         // 重新加载数据并刷新 UI
-                        loadSavedRecords()
-                        updateMonthStats()
-                        binding.historyRecyclerView.adapter?.notifyDataSetChanged()
+                        refreshUI()
                     }
                 }
             }
             val filter = android.content.IntentFilter("com.example.worktime.REFRESH_WIDGET")
             registerReceiver(refreshReceiver, filter)
+            
+            // 启动定时器，每秒刷新一次 UI（显示实时工作时长）
+            startUITimer()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun startUITimer() {
+        uiTimerHandler = Handler(Looper.getMainLooper())
+        val uiRunnable = object : Runnable {
+            override fun run() {
+                refreshUI()
+                uiTimerHandler?.postDelayed(this, 1000)
+            }
+        }
+        uiTimerHandler?.post(uiRunnable)
+    }
+
+    private fun refreshUI() {
+        try {
+            // 重新加载记录
+            val json = prefs.getString("records", null)
+            if (json != null) {
+                val gson = Gson()
+                val type = object : TypeToken<MutableList<WorkRecord>>() {}.type
+                val savedRecords: MutableList<WorkRecord> = gson.fromJson(json, type)
+                records.clear()
+                records.addAll(savedRecords)
+                binding.historyRecyclerView.adapter?.notifyDataSetChanged()
+            }
+            
+            // 更新今日状态
+            val today = getCurrentDate()
+            val todayIndex = records.indexOfFirst { it.date == today }
+            
+            if (todayIndex >= 0) {
+                val todayRecord = records[todayIndex]
+                currentRecordIndex = todayIndex
+                
+                if (todayRecord.checkOutTime == null) {
+                    // 正在工作中
+                    isWorking = true
+                    startTime = todayRecord.checkInTime
+                    updateUIForCheckIn(startTime)
+                    handler.post(timerRunnable)
+                } else {
+                    // 已完成
+                    val breakDuration = calculateBreakDuration()
+                    updateUIForCheckOut(todayRecord.checkOutTime!!, todayRecord.duration, breakDuration)
+                }
+            }
+            
+            updateMonthStats()
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -544,9 +596,12 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private var uiTimerHandler: Handler? = null
+    
     override fun onDestroy() {
         super.onDestroy()
         handler.removeCallbacks(timerRunnable)
+        uiTimerHandler?.removeCallbacksAndMessages(null)
         if (isWorking) {
             saveRecords()
         }
