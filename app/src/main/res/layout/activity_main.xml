@@ -34,6 +34,15 @@
                 android:textColor="#333333"/>
 
             <ImageButton
+                android:id="@+id/shortcutButton"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@android:drawable/ic_menu_add"
+                android:contentDescription="创建快捷方式"
+                android:padding="12dp"/>
+
+            <ImageButton
                 android:id="@+id/settingsButton"
                 android:layout_width="48dp"
                 android:layout_height="48dp"

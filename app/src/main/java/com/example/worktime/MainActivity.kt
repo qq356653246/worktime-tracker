@@ -91,6 +91,10 @@ class MainActivity : AppCompatActivity() {
             binding.settingsButton.setOnClickListener {
                 showBreakTimeSettings()
             }
+            
+            binding.shortcutButton.setOnClickListener {
+                createDesktopShortcut()
+            }
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -505,6 +509,34 @@ class MainActivity : AppCompatActivity() {
             sdf.format(Date())
         } catch (e: Exception) {
             "2026-01-01"
+        }
+    }
+
+    /**
+     * 创建桌面快捷方式
+     */
+    private fun createDesktopShortcut() {
+        try {
+            val shortcutIntent = android.content.Intent(this, ShortcutActivity::class.java)
+            shortcutIntent.action = android.content.Intent.ACTION_MAIN
+            
+            val addIntent = android.content.Intent()
+            addIntent.putExtra(android.content.Intent.EXTRA_SHORTCUT_INTENT, shortcutIntent)
+            addIntent.putExtra(android.content.Intent.EXTRA_SHORTCUT_NAME, "一键打卡")
+            addIntent.putExtra(
+                android.content.Intent.EXTRA_SHORTCUT_ICON,
+                android.graphics.BitmapFactory.decodeResource(
+                    resources,
+                    android.R.drawable.ic_menu_my_calendar
+                )
+            )
+            addIntent.action = "com.android.launcher.action.INSTALL_SHORTCUT"
+            
+            sendBroadcast(addIntent)
+            Toast.makeText(this, "✅ 快捷方式已创建到桌面", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(this, "创建失败：${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
