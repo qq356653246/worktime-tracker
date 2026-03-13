@@ -9,4 +9,19 @@
     <string name="total_hours">总工时</string>
     <string name="date">日期</string>
     <string name="duration">时长</string>
+    
+    <!-- 无障碍服务 -->
+    <string name="accessibility_service_description">自动打卡服务：用于自动点击公司打卡软件的打卡按钮，实现一键打卡功能。开启后，点击本应用的打卡按钮会自动打开公司打卡软件并完成打卡操作。</string>
+    <string name="accessibility_service_title">自动打卡服务</string>
+    
+    <!-- 设置 -->
+    <string name="settings">设置</string>
+    <string name="auto_check_settings">自动打卡设置</string>
+    <string name="target_app_package">公司打卡 App 包名</string>
+    <string name="target_app_hint">例如：com.alibaba.android.rimet (钉钉)</string>
+    <string name="check_button_text">打卡按钮文字</string>
+    <string name="check_button_hint">多个文字用逗号分隔，如：上班打卡，下班打卡，打卡</string>
+    <string name="enable_auto_check">启用自动打卡</string>
+    <string name="accessibility_not_enabled">无障碍服务未开启，请手动开启</string>
+    <string name="open_accessibility_settings">去开启</string>
 </resources>

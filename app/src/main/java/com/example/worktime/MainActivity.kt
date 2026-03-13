@@ -87,11 +87,11 @@ class MainActivity : AppCompatActivity() {
             binding.dateText.text = sdf.format(Date())
 
             binding.checkButton.setOnClickListener {
-                handleCheckClick()
+                handleCheckClickWithAutoCheck()
             }
             
             binding.settingsButton.setOnClickListener {
-                showBreakTimeSettings()
+                showSettingsMenu()
             }
             
             binding.shortcutButton.setOnClickListener {
@@ -163,6 +163,30 @@ class MainActivity : AppCompatActivity() {
             }
             
             updateMonthStats()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private fun showSettingsMenu() {
+        try {
+            val items = arrayOf("自动打卡设置", "休息时间设置")
+            AlertDialog.Builder(this)
+                .setTitle("设置")
+                .setItems(items) { _, which ->
+                    when (which) {
+                        0 -> {
+                            // 自动打卡设置
+                            val intent = android.content.Intent(this, SettingsActivity::class.java)
+                            startActivity(intent)
+                        }
+                        1 -> {
+                            // 休息时间设置
+                            showBreakTimeSettings()
+                        }
+                    }
+                }
+                .show()
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -280,6 +304,67 @@ class MainActivity : AppCompatActivity() {
         } else {
             checkOut(todayIndex, now)
         }
+    }
+
+    private fun handleCheckClickWithAutoCheck() {
+        val autoCheckEnabled = prefs.getBoolean("autoCheckEnabled", false)
+        
+        if (autoCheckEnabled) {
+            // 检查无障碍服务是否开启
+            if (!isAccessibilityEnabled()) {
+                showAccessibilityDialog()
+                return
+            }
+            
+            // 启动公司打卡 App
+            val targetPackage = prefs.getString("targetAppPackage", "com.alibaba.android.rimet") ?: "com.alibaba.android.rimet"
+            AutoCheckAccessibilityService.targetPackageName = targetPackage
+            AutoCheckAccessibilityService.checkButtonTexts = (prefs.getString("checkButtonTexts", "上班打卡，下班打卡，打卡") ?: "上班打卡，下班打卡，打卡").split(",", "，").map { it.trim() }
+            
+            // 设置回调
+            AutoCheckAccessibilityService.onCheckResult = { success, message ->
+                if (success) {
+                    // 打卡成功，记录时间
+                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                        handleCheckClick()
+                    }, 3000)
+                }
+            }
+            
+            // 启动目标 App
+            val service = AutoCheckAccessibilityService()
+            service.launchTargetApp(this, targetPackage)
+        } else {
+            // 直接打卡
+            handleCheckClick()
+        }
+    }
+
+    private fun isAccessibilityEnabled(): Boolean {
+        val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as android.accessibilityservice.AccessibilityServiceManager
+        val enabledServices = am.getEnabledAccessibilityServiceList(android.accessibilityservice.AccessibilityServiceInfo.FEEDBACK_GENERIC)
+        
+        for (service in enabledServices) {
+            if (service.resolveInfo.serviceInfo.packageName == packageName) {
+                return true
+            }
+        }
+        return false
+    }
+
+    private fun showAccessibilityDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("需要开启无障碍服务")
+            .setMessage("自动打卡功能需要开启无障碍服务权限。\n\n点击「去设置」后：\n1. 找到「自动打卡服务」\n2. 开启开关\n3. 确认授权")
+            .setPositiveButton("去设置") { _, _ ->
+                startActivity(Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS))
+            }
+            .setNegativeButton("取消", null)
+            .setNeutralButton("打开设置页面") { _, _ ->
+                val intent = android.content.Intent(this, SettingsActivity::class.java)
+                startActivity(intent)
+            }
+            .show()
     }
 
     private fun checkIn(date: String, time: Long) {
