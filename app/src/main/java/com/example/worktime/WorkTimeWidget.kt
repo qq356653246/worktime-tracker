@@ -53,8 +53,8 @@ class WorkTimeWidget : AppWidgetProvider() {
                     // 已签到但未签退，执行签退
                     checkOut(context, todayIndex, now, records, prefs)
                 } else {
-                    // 今天已完成打卡
-                    showToast(context, "今日打卡已完成")
+                    // 今天已完成打卡 - 允许重新开始（覆盖今天的记录）
+                    checkIn(context, today, now, records, prefs)
                 }
             }
             
@@ -215,13 +215,13 @@ class WorkTimeWidget : AppWidgetProvider() {
                         views.setTextViewText(R.id.widgetDuration, "已工作：${hours}小时${minutes}分钟")
                         views.setViewVisibility(R.id.widgetDuration, android.view.View.VISIBLE)
                     } else {
-                        // 已完成
-                        views.setTextViewText(R.id.widgetCheckButton, "已完成")
-                        views.setTextViewText(R.id.widgetStatus, "今日打卡完成")
+                        // 已完成 - 可以重新打卡
+                        views.setTextViewText(R.id.widgetCheckButton, "重新打卡")
+                        views.setTextViewText(R.id.widgetStatus, "今日已完成，点击重新开始")
                         
                         val hours = todayRecord.duration / (1000 * 60 * 60)
                         val minutes = (todayRecord.duration / (1000 * 60)) % 60
-                        views.setTextViewText(R.id.widgetDuration, "工作时长：${hours}小时${minutes}分钟")
+                        views.setTextViewText(R.id.widgetDuration, "上次时长：${hours}小时${minutes}分钟")
                         views.setViewVisibility(R.id.widgetDuration, android.view.View.VISIBLE)
                     }
                 }
