@@ -15,10 +15,6 @@ import java.util.*
  */
 class WorkTimeWidget : AppWidgetProvider() {
 
-    companion object {
-        const val ACTION_CHECK = "com.example.worktime.ACTION_CHECK"
-    }
-
     override fun onUpdate(
         context: Context,
         appWidgetManager: AppWidgetManager,
@@ -175,6 +171,8 @@ class WorkTimeWidget : AppWidgetProvider() {
     }
 
     companion object {
+        const val ACTION_CHECK = "com.example.worktime.ACTION_CHECK"
+
         fun updateAppWidget(
             context: Context,
             appWidgetManager: AppWidgetManager,
