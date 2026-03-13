@@ -39,8 +39,8 @@ class WorkTimeWidget : AppWidgetProvider() {
             val now = System.currentTimeMillis()
             val today = getCurrentDate()
             
-            // 加载记录
-            val records = loadRecords(prefs)
+            // 重新加载记录（确保最新数据）
+            val records = loadRecords(prefs).toMutableList()
             val todayIndex = records.indexOfFirst { it.date == today }
             
             if (todayIndex == -1) {
@@ -58,7 +58,7 @@ class WorkTimeWidget : AppWidgetProvider() {
                 }
             }
             
-            // 更新所有 widget
+            // 强制更新所有 widget
             val appWidgetManager = AppWidgetManager.getInstance(context)
             val appWidgetIds = appWidgetManager.getAppWidgetIds(
                 android.content.ComponentName(context, WorkTimeWidget::class.java)
@@ -66,6 +66,11 @@ class WorkTimeWidget : AppWidgetProvider() {
             for (appWidgetId in appWidgetIds) {
                 updateAppWidget(context, appWidgetManager, appWidgetId)
             }
+            
+            // 发送广播通知 MainActivity 刷新
+            val refreshIntent = android.content.Intent("com.example.worktime.REFRESH_WIDGET")
+            context.sendBroadcast(refreshIntent)
+            
         } catch (e: Exception) {
             e.printStackTrace()
         }

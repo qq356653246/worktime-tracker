@@ -79,6 +79,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private var refreshReceiver: android.content.BroadcastReceiver? = null
+    
     private fun setupUI() {
         try {
             val sdf = SimpleDateFormat("yyyy 年 MM 月 dd 日 EEEE", Locale.CHINA)
@@ -95,6 +97,20 @@ class MainActivity : AppCompatActivity() {
             binding.shortcutButton.setOnClickListener {
                 createDesktopShortcut()
             }
+            
+            // 注册广播接收器，监听 Widget 刷新
+            refreshReceiver = object : android.content.BroadcastReceiver() {
+                override fun onReceive(context: android.content.Context?, intent: android.content.Intent?) {
+                    if (intent?.action == "com.example.worktime.REFRESH_WIDGET") {
+                        // 重新加载数据并刷新 UI
+                        loadSavedRecords()
+                        updateMonthStats()
+                        binding.historyRecyclerView.adapter?.notifyDataSetChanged()
+                    }
+                }
+            }
+            val filter = android.content.IntentFilter("com.example.worktime.REFRESH_WIDGET")
+            registerReceiver(refreshReceiver, filter)
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -533,6 +549,10 @@ class MainActivity : AppCompatActivity() {
         handler.removeCallbacks(timerRunnable)
         if (isWorking) {
             saveRecords()
+        }
+        // 注销广播接收器
+        if (refreshReceiver != null) {
+            unregisterReceiver(refreshReceiver)
         }
     }
 }
